@@ -60,6 +60,7 @@ export default function Sidebar({ isOpen, onClose }) {
     {
       to: '/device-centre',
       label: 'Device centre',
+      badge: 'Soon',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17">
           <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -71,6 +72,7 @@ export default function Sidebar({ isOpen, onClose }) {
     {
       to: '/object-storage',
       label: 'Object storage',
+      badge: 'Soon',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="17" height="17">
           <ellipse cx="12" cy="5" rx="9" ry="3" />
@@ -124,19 +126,17 @@ export default function Sidebar({ isOpen, onClose }) {
 
   return (
     <>
-      <div className={`sidebar-overlay ${isOpen ? 'open' : ''}`} onClick={onClose} />
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`} id="sidebar">
-        <Link to="/" className="sidebar-logo">
-          <div className="sidebar-logo-icon">
-            <svg viewBox="0 0 40 40" fill="none" width="22" height="22">
+      {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+        <Link to="/files" className="sidebar-logo-link" style={{ textDecoration: 'none' }}>
+          <div className="sidebar-logo-mark">
+            <svg viewBox="0 0 32 32" fill="none" width="22" height="22">
               <path
-                d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z"
-                fill="url(#sl)"
+                d="M4 8a4 4 0 0 1 4-4h4.586a2 2 0 0 1 1.414.586l2.828 2.828A2 2 0 0 0 18.243 8H24a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z"
+                fill="url(#logo-grad)"
               />
-              <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95" />
-              <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8" />
               <defs>
-                <linearGradient id="sl" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
+                <linearGradient id="logo-grad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
                   <stop stopColor="#00d4ff" />
                   <stop offset="1" stopColor="#0077ff" />
                 </linearGradient>
@@ -161,7 +161,26 @@ export default function Sidebar({ isOpen, onClose }) {
               onClick={onClose}
             >
               {item.icon}
-              {item.label}
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.badge && (
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    background: 'rgba(0, 212, 255, 0.14)',
+                    color: 'var(--cyan)',
+                    border: '1px solid rgba(0, 212, 255, 0.3)',
+                    marginLeft: 'auto',
+                    lineHeight: '1.4',
+                  }}
+                >
+                  {item.badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
