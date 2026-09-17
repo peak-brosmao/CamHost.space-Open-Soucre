@@ -72,6 +72,15 @@ function migrate(PDO $pdo): void {
             email      TEXT NOT NULL UNIQUE,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS rate_limits (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_address   TEXT    NOT NULL,
+            action       TEXT    NOT NULL,
+            hits         INTEGER NOT NULL DEFAULT 1,
+            window_start INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rate_limits ON rate_limits(ip_address, action);
     ");
 
     // Add columns to existing deployments (no-op if columns already exist)
@@ -79,6 +88,10 @@ function migrate(PDO $pdo): void {
     try { $pdo->exec('ALTER TABLE files ADD COLUMN share_token TEXT'); } catch (Exception $e) {}
     try { $pdo->exec('ALTER TABLE files ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0'); } catch (Exception $e) {}
     try { $pdo->exec('ALTER TABLE users ADD COLUMN display_name TEXT'); } catch (Exception $e) {}
+    try { $pdo->exec('ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0'); } catch (Exception $e) {}
+    try { $pdo->exec('ALTER TABLE users ADD COLUMN verification_token TEXT'); } catch (Exception $e) {}
+    try { $pdo->exec('ALTER TABLE users ADD COLUMN verification_expires INTEGER'); } catch (Exception $e) {}
+    try { $pdo->exec("UPDATE users SET is_verified = 1 WHERE role = 'admin'"); } catch (Exception $e) {}
 
     // Seed default admin if no users exist yet
     seedAdmin($pdo);

@@ -13,6 +13,7 @@ import UploadPage from './pages/UploadPage';
 import SettingsPage from './pages/SettingsPage';
 import SignupsPage from './pages/SignupsPage';
 import SharePage from './pages/SharePage';
+import VerifyAccountPage from './pages/VerifyAccountPage';
 
 function ProtectedRoute({ children }) {
   const { token, loading } = useAuth();
@@ -55,6 +56,7 @@ export default function App() {
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify-account" element={<VerifyAccountPage />} />
               <Route path="/share/:token" element={<SharePage />} />
 
               {/* Authenticated Dashboard Routes */}

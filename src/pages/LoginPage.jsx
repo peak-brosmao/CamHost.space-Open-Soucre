@@ -37,6 +37,28 @@ export default function LoginPage() {
     }
   };
 
+  const handleResendActivation = async () => {
+    if (!email) {
+      showToast('Please enter your email above', 'error');
+      return;
+    }
+    try {
+      showToast('Generating fresh activation link...', 'info');
+      const res = await apiRequest('/auth/resend-verification', {
+        method: 'POST',
+        body: { email: email.trim() },
+      });
+      showToast('Activation link prepared!', 'success');
+      if (res.verification_url) {
+        navigate(`/verify-account?token=${encodeURIComponent(res.verification_url.split('token=')[1] || '')}`);
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to resend link', 'error');
+    }
+  };
+
+  const isUnverifiedError = error && (error.toLowerCase().includes('activate') || error.toLowerCase().includes('verification'));
+
   return (
     <div className="auth-layout">
       <CanvasBackground />
@@ -51,13 +73,25 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="alert-box error" style={{ marginBottom: '20px' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span>{error}</span>
+              <div className="alert-box error" style={{ marginBottom: '20px', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+                {isUnverifiedError && (
+                  <button
+                    type="button"
+                    onClick={handleResendActivation}
+                    className="btn btn-secondary btn-sm"
+                    style={{ marginTop: '4px', width: '100%', justifyContent: 'center' }}
+                  >
+                    Activate / Resend Verification Link
+                  </button>
+                )}
               </div>
             )}
 

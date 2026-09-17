@@ -1,12 +1,12 @@
 <?php
 // =============================================
-// CamHost.space — JWT Authentication Helper
+// CamHost.space — Enterprise JWT & Security Auth
 // Developer: PEAK BROSMAO · peakbrosmao.me
 // =============================================
-// Lightweight HS256 JWT without external libraries.
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/security.php';
 
 // ── JWT Utilities ──────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ function jwt_verify(string $token): ?array {
     $expected = base64url_encode(hash_hmac('sha256', "$header.$body", JWT_SECRET, true));
 
     // Constant-time comparison to prevent timing attacks
-    if (!hash_equals($expected, $sig)) return null;
+    if (!secureTokenCompare($expected, $sig)) return null;
 
     $payload = json_decode(base64url_decode($body), true);
     if (!$payload || $payload['exp'] < time()) return null;
@@ -58,7 +58,6 @@ function base64url_decode(string $data): string {
 function requireAuth(): array {
     $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     if (!$auth) {
-        // Also check query param for download links
         $auth = 'Bearer ' . ($_GET['token'] ?? '');
     }
 
@@ -82,14 +81,41 @@ function requireAuth(): array {
     return $user;
 }
 
+/**
+ * Require account to be email/link verified before modifying files or storage.
+ */
+function requireVerified(): array {
+    $user = requireAuth();
+    if ($user['role'] !== 'admin' && empty($user['is_verified'])) {
+        jsonError('Your account has not been activated yet. Please click the verification link sent to your email.', 403, [
+            'unverified' => true,
+            'email'      => $user['email'],
+        ]);
+    }
+    return $user;
+}
+
+/**
+ * Require admin role.
+ */
+function requireAdmin(): array {
+    $user = requireAuth();
+    if (($user['role'] ?? '') !== 'admin') {
+        jsonError('Forbidden: Administrator access required', 403);
+    }
+    return $user;
+}
+
 // ── Route Handlers ──────────────────────────────────────────────
 
 /**
  * POST /api/auth/login
  * Body: { email, password }
- * Returns: { token, user }
+ * Protected against brute-force (max 5 failed attempts per 15 min).
  */
 function handleLogin(): void {
+    enforceRateLimit('login', 5, 900);
+
     $body = json_decode(file_get_contents('php://input'), true);
     $email    = trim($body['email']    ?? '');
     $password = trim($body['password'] ?? '');
@@ -106,27 +132,169 @@ function handleLogin(): void {
         jsonError('Invalid email or password', 401);
     }
 
+    // Check if account is verified
+    if ($user['role'] !== 'admin' && empty($user['is_verified'])) {
+        jsonError('Account not activated. Please use the activation link sent to you.', 403, [
+            'unverified' => true,
+            'email'      => $user['email'],
+        ]);
+    }
+
     $token = jwt_create(['sub' => $user['id'], 'email' => $user['email'], 'role' => $user['role']]);
 
     jsonSuccess([
         'token' => $token,
         'user'  => [
-            'id'    => $user['id'],
-            'email' => $user['email'],
-            'role'  => $user['role'],
+            'id'           => $user['id'],
+            'email'        => $user['email'],
+            'display_name' => $user['display_name'] ?? '',
+            'role'         => $user['role'],
+            'is_verified'  => (int)($user['is_verified'] ?? 1),
         ],
     ]);
 }
 
 /**
- * Require admin role.
+ * POST /auth/register
+ * Body: { email, password, confirm_password }
+ * Generates secure activation token with 24-hour expiration.
  */
-function requireAdmin(): array {
-    $user = requireAuth();
-    if (($user['role'] ?? '') !== 'admin') {
-        jsonError('Forbidden: Administrator access required', 403);
+function handleRegister(): void {
+    enforceRateLimit('register', 5, 3600);
+
+    $body     = json_decode(file_get_contents('php://input'), true);
+    $email    = trim($body['email']            ?? '');
+    $password = trim($body['password']         ?? '');
+    $confirm  = trim($body['confirm_password'] ?? '');
+
+    if (!$email || !$password) jsonError('Email and password are required', 400);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jsonError('Invalid email address', 422);
+    if (strlen($password) < 8) jsonError('Password must be at least 8 characters', 400);
+    if ($password !== $confirm) jsonError('Passwords do not match', 400);
+
+    try {
+        $hash          = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+        $verifyToken   = generateSecureToken(32);
+        $verifyExpires = time() + 86400; // 24 hours
+
+        $stmt = db()->prepare('
+            INSERT INTO users (email, password, role, is_verified, verification_token, verification_expires)
+            VALUES (?, ?, ?, 0, ?, ?)
+        ');
+        $stmt->execute([$email, $hash, 'user', $verifyToken, $verifyExpires]);
+        $newId = (int)db()->lastInsertId();
+
+        $verifyUrl = 'https://camhost.space/verify-account?token=' . $verifyToken;
+
+        jsonSuccess([
+            'requires_verification' => true,
+            'verification_url'      => $verifyUrl,
+            'token'                 => $verifyToken,
+            'user'                  => ['id' => $newId, 'email' => $email, 'role' => 'user'],
+            'message'               => 'Account created! Please verify your account using the activation link.',
+        ], 201);
+    } catch (PDOException $e) {
+        if (str_contains($e->getMessage(), 'UNIQUE')) {
+            jsonError('An account with this email already exists', 409);
+        }
+        throw $e;
     }
-    return $user;
+}
+
+/**
+ * GET or POST /api/auth/verify
+ * Parameters: token (via query or body)
+ * Activates the user account and returns valid JWT session.
+ */
+function handleVerifyAccount(): void {
+    enforceRateLimit('verify', 10, 60);
+
+    $token = trim($_GET['token'] ?? '');
+    if (!$token) {
+        $body = json_decode(file_get_contents('php://input'), true);
+        $token = trim($body['token'] ?? '');
+    }
+
+    if (!$token) {
+        jsonError('Verification token is required', 400);
+    }
+
+    $stmt = db()->prepare('SELECT * FROM users WHERE verification_token = ?');
+    $stmt->execute([$token]);
+    $user = $stmt->fetch();
+
+    if (!$user || !secureTokenCompare($user['verification_token'], $token)) {
+        jsonError('Invalid or already used verification token', 400);
+    }
+
+    if (!empty($user['verification_expires']) && time() > (int)$user['verification_expires']) {
+        jsonError('Verification token has expired. Please request a new activation link.', 410, [
+            'expired' => true,
+            'email'   => $user['email'],
+        ]);
+    }
+
+    // Activate account and clear token
+    $update = db()->prepare('UPDATE users SET is_verified = 1, verification_token = NULL, verification_expires = NULL WHERE id = ?');
+    $update->execute([$user['id']]);
+
+    // Issue JWT token immediately
+    $jwt = jwt_create(['sub' => $user['id'], 'email' => $user['email'], 'role' => $user['role']]);
+
+    jsonSuccess([
+        'verified' => true,
+        'token'    => $jwt,
+        'user'     => [
+            'id'           => $user['id'],
+            'email'        => $user['email'],
+            'display_name' => $user['display_name'] ?? '',
+            'role'         => $user['role'],
+            'is_verified'  => 1,
+        ],
+        'message'  => 'Account successfully verified and activated!',
+    ]);
+}
+
+/**
+ * POST /api/auth/resend-verification
+ * Body: { email }
+ * Resends a new activation link if account is unverified.
+ */
+function handleResendVerification(): void {
+    enforceRateLimit('resend_verify', 3, 900);
+
+    $body  = json_decode(file_get_contents('php://input'), true);
+    $email = trim($body['email'] ?? '');
+
+    if (!$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        jsonError('A valid email address is required', 400);
+    }
+
+    $stmt = db()->prepare('SELECT id, email, is_verified FROM users WHERE email = ?');
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    if ($user && empty($user['is_verified'])) {
+        $newToken   = generateSecureToken(32);
+        $newExpires = time() + 86400; // 24 hours
+
+        $update = db()->prepare('UPDATE users SET verification_token = ?, verification_expires = ? WHERE id = ?');
+        $update->execute([$newToken, $newExpires, $user['id']]);
+
+        $verifyUrl = 'https://camhost.space/verify-account?token=' . $newToken;
+
+        jsonSuccess([
+            'sent'             => true,
+            'verification_url' => $verifyUrl,
+            'message'          => 'A fresh activation link has been generated.',
+        ]);
+    }
+
+    // Generic response to prevent user enumeration
+    jsonSuccess([
+        'sent'    => true,
+        'message' => 'If an unverified account exists with that email, an activation link has been prepared.',
+    ]);
 }
 
 /**
@@ -139,6 +307,7 @@ function handleMe(): void {
         'email'        => $user['email'],
         'display_name' => $user['display_name'] ?? '',
         'role'         => $user['role'],
+        'is_verified'  => (int)($user['is_verified'] ?? 1),
         'created_at'   => $user['created_at'],
     ]);
 }
@@ -160,7 +329,7 @@ function handleUpdateProfile(): void {
         $stmt = db()->prepare('UPDATE users SET display_name = ?, email = COALESCE(NULLIF(?, ""), email) WHERE id = ?');
         $stmt->execute([$displayName, $email, $user['id']]);
 
-        $updated = db()->prepare('SELECT id, email, display_name, role, created_at FROM users WHERE id = ?');
+        $updated = db()->prepare('SELECT id, email, display_name, role, is_verified, created_at FROM users WHERE id = ?');
         $updated->execute([$user['id']]);
         $userRow = $updated->fetch();
 
@@ -196,46 +365,9 @@ function handleChangePassword(): void {
         jsonError('Current password is incorrect', 401);
     }
 
-    $hash = password_hash($new, PASSWORD_BCRYPT);
+    $hash = password_hash($new, PASSWORD_BCRYPT, ['cost' => 12]);
     $stmt = db()->prepare('UPDATE users SET password = ? WHERE id = ?');
     $stmt->execute([$hash, $user['id']]);
 
     jsonSuccess(['message' => 'Password updated successfully']);
-}
-
-/**
- * POST /auth/register
- * Body: { email, password, confirm_password }
- * Creates a new user account (role = 'user').
- */
-function handleRegister(): void {
-    $body     = json_decode(file_get_contents('php://input'), true);
-    $email    = trim($body['email']            ?? '');
-    $password = trim($body['password']         ?? '');
-    $confirm  = trim($body['confirm_password'] ?? '');
-
-    if (!$email || !$password) jsonError('Email and password are required', 400);
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) jsonError('Invalid email address', 422);
-    if (strlen($password) < 8) jsonError('Password must be at least 8 characters', 400);
-    if ($password !== $confirm) jsonError('Passwords do not match', 400);
-
-    try {
-        $hash = password_hash($password, PASSWORD_BCRYPT);
-        $stmt = db()->prepare('INSERT INTO users (email, password, role) VALUES (?, ?, ?)');
-        $stmt->execute([$email, $hash, 'user']);
-        $newId = (int)db()->lastInsertId();
-
-        $token = jwt_create(['sub' => $newId, 'email' => $email, 'role' => 'user']);
-
-        jsonSuccess([
-            'token' => $token,
-            'user'  => ['id' => $newId, 'email' => $email, 'role' => 'user'],
-            'message' => 'Account created successfully',
-        ], 201);
-    } catch (PDOException $e) {
-        if (str_contains($e->getMessage(), 'UNIQUE')) {
-            jsonError('An account with this email already exists', 409);
-        }
-        throw $e;
-    }
 }

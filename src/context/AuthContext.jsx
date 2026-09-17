@@ -48,10 +48,12 @@ export function AuthProvider({ children }) {
       method: 'POST',
       body: { email, password, confirm_password: confirmPassword },
     });
-    setToken(res.token);
-    setUser(res.user);
-    setTokenState(res.token);
-    setUserState(res.user);
+    if (res.token) {
+      setToken(res.token);
+      setUser(res.user);
+      setTokenState(res.token);
+      setUserState(res.user);
+    }
     return res;
   };
 

@@ -6,6 +6,11 @@
 // All requests to /api/* are routed here via .htaccess
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/security.php';
+
+// ── Security Inspection & Anti-DDoS ─────────────────────────────
+runWafInspection();
+enforceRateLimit('api_general', 120, 60);
 
 // ── Strict Origin Security & CORS ───────────────────────────────
 $allowedOrigins = array_map('trim', explode(',', ALLOWED_ORIGINS));
@@ -81,11 +86,13 @@ try {
     }
 
     // ── Auth routes ──
-    if ($rawPath === '/auth/login'           && $method === 'POST')  { require __DIR__ . '/auth.php';   handleLogin();          exit; }
-    if ($rawPath === '/auth/register'        && $method === 'POST')  { require __DIR__ . '/auth.php';   handleRegister();       exit; }
-    if ($rawPath === '/auth/me'              && $method === 'GET')   { require __DIR__ . '/auth.php';   handleMe();             exit; }
-    if ($rawPath === '/auth/profile'         && $method === 'PUT')   { require __DIR__ . '/auth.php';   handleUpdateProfile();  exit; }
-    if ($rawPath === '/auth/change-password' && $method === 'POST')  { require __DIR__ . '/auth.php';   handleChangePassword(); exit; }
+    if ($rawPath === '/auth/login'               && $method === 'POST')  { require __DIR__ . '/auth.php';   handleLogin();              exit; }
+    if ($rawPath === '/auth/register'            && $method === 'POST')  { require __DIR__ . '/auth.php';   handleRegister();           exit; }
+    if ($rawPath === '/auth/verify')                                     { require __DIR__ . '/auth.php';   handleVerifyAccount();      exit; }
+    if ($rawPath === '/auth/resend-verification' && $method === 'POST')  { require __DIR__ . '/auth.php';   handleResendVerification(); exit; }
+    if ($rawPath === '/auth/me'                  && $method === 'GET')   { require __DIR__ . '/auth.php';   handleMe();                 exit; }
+    if ($rawPath === '/auth/profile'             && $method === 'PUT')   { require __DIR__ . '/auth.php';   handleUpdateProfile();      exit; }
+    if ($rawPath === '/auth/change-password'     && $method === 'POST')  { require __DIR__ . '/auth.php';   handleChangePassword();     exit; }
 
     // ── Signup route ──
     if ($rawPath === '/signup') {

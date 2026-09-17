@@ -16,7 +16,10 @@ require_once __DIR__ . '/auth.php';
  * Returns: { success: true, file: {...} }
  */
 function handleUpload(): void {
-    $user = requireAuth();
+    $user = requireVerified();
+
+    // ── Upload Rate Limit (Anti-abuse) ──────────────────────────
+    enforceRateLimit('upload', 20, 60);
 
     // ── Validate uploaded file ──────────────────────────────────
     if (empty($_FILES['file'])) {
@@ -38,13 +41,20 @@ function handleUpload(): void {
         jsonError($errors[$f['error']] ?? 'Upload error code ' . $f['error'], 400);
     }
 
-    // Size check (PHP may have already enforced php.ini limits)
+    // Size check
     $maxBytes = UPLOAD_MAX_MB * 1024 * 1024;
     if ($f['size'] > $maxBytes) {
         jsonError('File too large. Max allowed: ' . UPLOAD_MAX_MB . ' MB', 413);
     }
 
     $originalName = basename($f['name']);
+
+    // Block dangerous server-executable extensions
+    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $dangerousExts = ['php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'sh', 'bash', 'bat', 'cmd', 'exe', 'dll', 'com', 'htaccess', 'vbs'];
+    if (in_array($ext, $dangerousExts, true)) {
+        jsonError('Security restriction: Executable scripts or system files cannot be uploaded.', 400);
+    }
     $mimeType     = mime_content_type($f['tmp_name']) ?: 'application/octet-stream';
     $sizeBytes    = $f['size'];
     $description  = trim($_POST['description'] ?? '');
