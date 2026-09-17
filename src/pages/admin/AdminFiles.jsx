@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast';
 import { apiRequest } from '../../api/client';
 
@@ -11,16 +11,25 @@ const formatBytes = (b) => {
 };
 
 const TAB_FILTERS = [
-  { id: 'all', label: 'All Files' },
-  { id: 'blocked', label: 'Blocked Files' },
-  { id: 'reported', label: 'Reported Files' },
-  { id: 'expired', label: 'Expired Files' },
+  { id: 'all', label: 'All Files', path: '/admin/files' },
+  { id: 'reported', label: 'Reported Files', path: '/admin/files/reported' },
+  { id: 'expired', label: 'Expired Files', path: '/admin/files/expired' },
+  { id: 'blocked', label: 'Blocked Files', path: '/admin/files/blocked' },
 ];
 
 export default function AdminFiles() {
-  const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get('filter') || 'all';
-  const [activeFilter, setActiveFilter] = useState(defaultTab);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Determine filter from pathname
+  const getFilterFromPath = () => {
+    if (location.pathname.includes('/reported')) return 'reported';
+    if (location.pathname.includes('/expired')) return 'expired';
+    if (location.pathname.includes('/blocked')) return 'blocked';
+    return 'all';
+  };
+
+  const activeFilter = getFilterFromPath();
   const [files, setFiles] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
@@ -40,7 +49,13 @@ export default function AdminFiles() {
     }
   };
 
-  useEffect(() => { fetchFiles(search, activeFilter); }, [activeFilter]);
+  useEffect(() => {
+    fetchFiles(search, activeFilter);
+  }, [activeFilter]);
+
+  const handleTabChange = (tab) => {
+    navigate(tab.path);
+  };
 
   const handleBlock = async (f) => {
     try {
@@ -59,12 +74,19 @@ export default function AdminFiles() {
     } catch (err) { showToast(err.message || 'Failed', 'error'); }
   };
 
+  const pageTitle = TAB_FILTERS.find(t => t.id === activeFilter)?.label || 'File Management';
+
   return (
     <div className="admin-page-content">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">File Management</h1>
-          <p className="admin-page-desc">Browse, search, block, and delete files across all users.</p>
+          <h1 className="admin-page-title">{pageTitle}</h1>
+          <p className="admin-page-desc">
+            {activeFilter === 'reported' && 'Review user complaints, DMCA takedown requests, and flagged uploads.'}
+            {activeFilter === 'expired' && 'Manage files whose retention period has passed or pending deletion.'}
+            {activeFilter === 'blocked' && 'Inspect files quarantined or prohibited from public download.'}
+            {activeFilter === 'all' && 'Central repository index: monitor uploads, access public links, and moderate content.'}
+          </p>
         </div>
       </div>
 
@@ -74,7 +96,7 @@ export default function AdminFiles() {
           <button
             key={t.id}
             className={`admin-filter-tab ${activeFilter === t.id ? 'active' : ''}`}
-            onClick={() => setActiveFilter(t.id)}
+            onClick={() => handleTabChange(t)}
           >
             {t.label}
           </button>

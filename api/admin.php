@@ -91,6 +91,11 @@ function handleAdminRoutes(string $method, array $pathParts): void {
             handleAdminCacheClear($admin);
             break;
 
+        case 'smtp-test':
+            if ($method !== 'POST') jsonError('Method Not Allowed', 405);
+            handleAdminSmtpTest($admin);
+            break;
+
         default:
             jsonError('Admin endpoint not found', 404);
     }
@@ -166,6 +171,19 @@ function handleAdminOverview(array $admin): void {
  */
 function handleAdminUsers(string $method, array $pathParts, array $admin): void {
     $pdo = db();
+
+    // GET /api/admin/users/activity — Return full timeline of user and admin actions
+    if (($pathParts[2] ?? '') === 'activity') {
+        $stmt = $pdo->query('
+            SELECT a.id, a.action, a.target_type, a.target_id, a.details, a.ip_address, a.created_at, u.email as admin_email
+            FROM audit_logs a
+            LEFT JOIN users u ON u.id = a.admin_id
+            ORDER BY a.created_at DESC
+            LIMIT 150
+        ');
+        jsonSuccess(['activities' => $stmt->fetchAll()]);
+    }
+
     $userId = isset($pathParts[2]) ? (int)$pathParts[2] : null;
     $action = $pathParts[3] ?? null;
 
@@ -302,6 +320,7 @@ function handleAdminFiles(string $method, array $pathParts, array $admin): void 
 
     // List files
     $search = trim($_GET['q'] ?? '');
+    $filter = trim($_GET['filter'] ?? 'all');
     $limit  = min(100, max(10, (int)($_GET['limit'] ?? 50)));
     $offset = max(0, (int)($_GET['offset'] ?? 0));
 
@@ -310,6 +329,14 @@ function handleAdminFiles(string $method, array $pathParts, array $admin): void 
     if ($search !== '') {
         $where .= ' AND (f.original_name LIKE ? OR u.email LIKE ? OR f.telegram_file_id LIKE ?)';
         $params = ["%{$search}%", "%{$search}%", "%{$search}%"];
+    }
+
+    if ($filter === 'blocked') {
+        $where .= ' AND COALESCE(f.is_blocked, 0) = 1';
+    } elseif ($filter === 'reported') {
+        $where .= " AND (COALESCE(f.is_blocked, 0) = 1 OR f.description LIKE '%report%' OR f.description LIKE '%abuse%')";
+    } elseif ($filter === 'expired') {
+        $where .= " AND f.created_at < datetime('now', '-30 days')";
     }
 
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM files f JOIN users u ON u.id = f.user_id {$where}");
@@ -355,27 +382,13 @@ function handleAdminSettings(string $method, array $admin): void {
 
     if ($method === 'POST') {
         $body = json_decode(file_get_contents('php://input'), true) ?: [];
-        $allowedKeys = [
-            'site_name',
-            'site_description',
-            'maintenance_mode',
-            'maintenance_message',
-            'max_upload_size_mb',
-            'allowed_extensions',
-            'default_storage_quota_mb',
-            'allow_guest_download',
-            'announcement_banner',
-            'telegram_storage_enabled',
-            'smtp_host',
-            'smtp_port',
-            'smtp_user',
-            'smtp_from',
-        ];
-
         $updatedCount = 0;
+
         foreach ($body as $k => $v) {
-            if (in_array($k, $allowedKeys, true)) {
-                setSystemSetting($k, (string)$v);
+            // Validate key format (alphanumeric and underscore, 2-64 chars)
+            if (is_string($k) && preg_match('/^[a-z0-9_]{2,64}$/', $k)) {
+                $valStr = is_scalar($v) ? (string)$v : json_encode($v);
+                setSystemSetting($k, $valStr);
                 $updatedCount++;
             }
         }
@@ -477,10 +490,46 @@ function handleAdminHealth(): void {
 }
 
 /**
- * Purge rate limits table and temporary cache.
+ * Purge rate limits table, temporary cache, and optimize SQLite storage.
  */
 function handleAdminCacheClear(array $admin): void {
-    $count = db()->exec('DELETE FROM rate_limits');
-    logAudit((int)$admin['id'], 'CACHE_CLEARED', 'system', 'rate_limits', "Admin flushed {$count} rate limit records");
-    jsonSuccess(['message' => "Flushed {$count} rate limit / cache records"]);
+    $pdo = db();
+    $count = $pdo->exec('DELETE FROM rate_limits');
+    try {
+        $pdo->exec('PRAGMA wal_checkpoint(TRUNCATE)');
+        $pdo->exec('VACUUM');
+    } catch (Exception $e) {}
+    logAudit((int)$admin['id'], 'CACHE_CLEARED', 'system', 'rate_limits', "Admin flushed {$count} rate limit records and optimized database");
+    jsonSuccess(['message' => "Flushed {$count} rate-limit records and optimized SQLite database successfully."]);
+}
+
+/**
+ * Test SMTP connection and configuration.
+ */
+function handleAdminSmtpTest(array $admin): void {
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $host = trim($body['smtp_host'] ?? getSystemSetting('smtp_host', ''));
+    $port = (int)($body['smtp_port'] ?? getSystemSetting('smtp_port', '587'));
+    $timeout = 5;
+
+    if (empty($host)) {
+        jsonError('SMTP Host is not configured. Please enter a valid SMTP host.', 400);
+    }
+
+    $errno = 0;
+    $errstr = '';
+    $fp = @fsockopen($host, $port, $errno, $errstr, $timeout);
+
+    if (!$fp) {
+        jsonError("Could not connect to {$host}:{$port} - Error: {$errstr} ({$errno})", 502);
+    }
+
+    $response = fgets($fp, 515);
+    fclose($fp);
+
+    logAudit((int)$admin['id'], 'SMTP_TESTED', 'system', 'smtp', "SMTP server connection verified: {$host}:{$port}");
+    jsonSuccess([
+        'message' => "Successfully connected to {$host}:{$port}! Server response: " . trim($response),
+        'server_response' => trim($response)
+    ]);
 }

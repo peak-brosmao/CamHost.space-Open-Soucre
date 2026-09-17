@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast';
 import { apiRequest } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -34,7 +35,12 @@ function StatusBadge({ user }) {
 }
 
 export default function AdminUsers() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isActivityView = location.pathname.includes('/activity');
+
   const [users, setUsers] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -58,7 +64,25 @@ export default function AdminUsers() {
     }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  const fetchActivities = async () => {
+    setLoading(true);
+    try {
+      const res = await apiRequest('/admin/users/activity');
+      setActivities(res.activities || []);
+    } catch (err) {
+      showToast(err.message || 'Failed to load activity log', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isActivityView) {
+      fetchActivities();
+    } else {
+      fetchUsers(search);
+    }
+  }, [isActivityView]);
 
   const openModal = (u, type) => {
     setSelectedUser(u);
@@ -108,16 +132,49 @@ export default function AdminUsers() {
     } catch (err) { showToast(err.message || 'Failed', 'error'); }
   };
 
+  const filteredActivities = activities.filter(a => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      (a.action && a.action.toLowerCase().includes(q)) ||
+      (a.details && a.details.toLowerCase().includes(q)) ||
+      (a.admin_email && a.admin_email.toLowerCase().includes(q)) ||
+      (a.ip_address && a.ip_address.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div className="admin-page-content">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">User Management</h1>
-          <p className="admin-page-desc">Search, manage, suspend, and configure all registered users.</p>
+          <h1 className="admin-page-title">
+            {isActivityView ? 'User & System Activity' : 'User Management'}
+          </h1>
+          <p className="admin-page-desc">
+            {isActivityView
+              ? 'Real-time audit records of user registrations, security events, file updates, and administrative interventions.'
+              : 'Search, manage, suspend, configure storage limits, and inspect registered users.'}
+          </p>
         </div>
       </div>
 
-      {/* Search + Count */}
+      {/* Navigation tabs */}
+      <div className="admin-filter-tabs">
+        <button
+          className={`admin-filter-tab ${!isActivityView ? 'active' : ''}`}
+          onClick={() => navigate('/admin/users')}
+        >
+          All Users
+        </button>
+        <button
+          className={`admin-filter-tab ${isActivityView ? 'active' : ''}`}
+          onClick={() => navigate('/admin/users/activity')}
+        >
+          User Activity
+        </button>
+      </div>
+
+      {/* Search + Toolbar */}
       <div className="admin-toolbar">
         <div className="admin-search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" className="admin-search-icon">
@@ -126,83 +183,170 @@ export default function AdminUsers() {
           <input
             type="text"
             className="admin-search-input"
-            placeholder="Search by email or display name…"
+            placeholder={isActivityView ? 'Filter activities by action, user, or IP…' : 'Search by email or display name…'}
             value={search}
-            onChange={e => { setSearch(e.target.value); fetchUsers(e.target.value); }}
+            onChange={e => {
+              setSearch(e.target.value);
+              if (!isActivityView) fetchUsers(e.target.value);
+            }}
           />
         </div>
-        <span className="admin-count-badge">{total} user{total !== 1 ? 's' : ''}</span>
-      </div>
-
-      {/* Table */}
-      <div className="admin-card admin-table-card">
-        {loading ? (
-          <div className="admin-loading"><span className="spinner-lg" /></div>
+        {!isActivityView ? (
+          <span className="admin-count-badge">{total} user{total !== 1 ? 's' : ''}</span>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Storage Used</th>
-                  <th>Quota</th>
-                  <th>Files</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map(u => (
-                  <tr key={u.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div className="admin-user-mini-avatar">{(u.display_name || u.email || '?').charAt(0).toUpperCase()}</div>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.display_name || 'No Name'}</div>
-                          <div style={{ color: 'var(--adm-muted)', fontSize: '0.78rem' }}>{u.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`admin-badge ${u.role === 'admin' ? 'info' : 'neutral'}`}>
-                        {u.role?.toUpperCase()}
-                      </span>
-                    </td>
-                    <td><StatusBadge user={u} /></td>
-                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>{formatBytes(u.storage_used_bytes)}</td>
-                    <td style={{ fontVariantNumeric: 'tabular-nums' }}>{formatBytes(u.storage_quota)}</td>
-                    <td>{u.total_files ?? 0}</td>
-                    <td>
-                      <div className="admin-action-row">
-                        <button className="admin-btn-xs secondary" onClick={() => openModal(u, 'detail')}>Details</button>
-                        <button className="admin-btn-xs secondary" onClick={() => openModal(u, 'quota')}>Quota</button>
-                        <button className="admin-btn-xs secondary" onClick={() => openModal(u, 'password')}>Reset Pass</button>
-                        {u.id !== me?.id && (
-                          <>
-                            <button className="admin-btn-xs secondary" onClick={() => handleToggleRole(u)}>
-                              {u.role === 'admin' ? 'Demote' : 'Make Admin'}
-                            </button>
-                            <button
-                              className={`admin-btn-xs ${u.is_banned ? 'secondary' : 'danger'}`}
-                              onClick={() => handleToggleBan(u)}
-                            >
-                              {u.is_banned ? 'Unban' : 'Suspend'}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {users.length === 0 && (
-                  <tr><td colSpan="7" className="admin-table-empty">No users found matching your search.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <span className="admin-count-badge">{filteredActivities.length} event{filteredActivities.length !== 1 ? 's' : ''}</span>
         )}
       </div>
+
+      {/* All Users View */}
+      {!isActivityView && (
+        <div className="admin-card admin-table-card">
+          {loading ? (
+            <div className="admin-loading"><span className="spinner-lg" /></div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Files</th>
+                    <th>Storage</th>
+                    <th>Joined</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="admin-table-empty">No users found matching query.</td>
+                    </tr>
+                  ) : (
+                    users.map(u => (
+                      <tr key={u.id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                            <div className="admin-user-mini-avatar">
+                              {(u.display_name || u.email).charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, color: 'var(--adm-text)', fontSize: '0.84rem' }}>
+                                {u.display_name || u.email.split('@')[0]}
+                              </div>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--adm-muted)' }}>{u.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`admin-badge ${u.role === 'admin' ? 'info' : 'neutral'}`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td><StatusBadge user={u} /></td>
+                        <td>{u.total_files ?? 0}</td>
+                        <td>
+                          <div style={{ fontSize: '0.8rem' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--adm-text)' }}>{formatBytes(u.storage_used_bytes)}</span>
+                            <span style={{ color: 'var(--adm-muted)', margin: '0 3px' }}>/</span>
+                            <span style={{ color: 'var(--adm-muted)' }}>{formatBytes(u.storage_quota)}</span>
+                          </div>
+                        </td>
+                        <td style={{ color: 'var(--adm-muted)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                          {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
+                        </td>
+                        <td>
+                          <div className="admin-action-row" style={{ justifyContent: 'flex-end' }}>
+                            <button className="admin-btn-xs secondary" onClick={() => openModal(u, 'detail')}>View</button>
+                            <button className="admin-btn-xs secondary" onClick={() => openModal(u, 'quota')}>Quota</button>
+                            <button className="admin-btn-xs secondary" onClick={() => openModal(u, 'password')}>Pass</button>
+                            {u.id !== me?.id && (
+                              <>
+                                <button className="admin-btn-xs secondary" onClick={() => handleToggleRole(u)}>
+                                  {u.role === 'admin' ? 'Demote' : 'Make Admin'}
+                                </button>
+                                <button
+                                  className={`admin-btn-xs ${u.is_banned ? 'warning' : 'danger'}`}
+                                  onClick={() => handleToggleBan(u)}
+                                >
+                                  {u.is_banned ? 'Unban' : 'Ban'}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* User Activity Stream View */}
+      {isActivityView && (
+        <div className="admin-card admin-table-card">
+          {loading ? (
+            <div className="admin-loading"><span className="spinner-lg" /></div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Action</th>
+                    <th>Admin / Initiator</th>
+                    <th>Target</th>
+                    <th>Details</th>
+                    <th>IP Address</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredActivities.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="admin-table-empty">No activity records recorded yet.</td>
+                    </tr>
+                  ) : (
+                    filteredActivities.map(a => (
+                      <tr key={a.id}>
+                        <td style={{ fontSize: '0.78rem', color: 'var(--adm-muted)', whiteSpace: 'nowrap' }}>
+                          {a.created_at ? new Date(a.created_at).toLocaleString() : '—'}
+                        </td>
+                        <td>
+                          <span className={`admin-badge ${
+                            a.action.includes('BAN') ? 'danger' :
+                            a.action.includes('DELETE') ? 'danger' :
+                            a.action.includes('PASSWORD') ? 'warning' :
+                            a.action.includes('QUOTA') ? 'info' : 'success'
+                          }`}>
+                            {a.action}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--adm-text)' }}>
+                          {a.admin_email || 'System'}
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--adm-text-secondary)' }}>
+                            {a.target_type ? `${a.target_type} #${a.target_id || ''}` : '—'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.82rem', color: 'var(--adm-text)' }}>
+                          {a.details || '—'}
+                        </td>
+                        <td style={{ fontSize: '0.78rem', color: 'var(--adm-muted)', fontFamily: 'monospace' }}>
+                          {a.ip_address || '—'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* User Detail Modal */}
       {modalType === 'detail' && selectedUser && (
