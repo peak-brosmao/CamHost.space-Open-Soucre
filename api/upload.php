@@ -201,7 +201,12 @@ function sendToTelegram(string $path, string $name, string $mime, string $captio
         CURLOPT_POSTFIELDS     => $data,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => CURL_UPLOAD_TIMEOUT,
-        CURLOPT_CONNECTTIMEOUT => CURL_CONNECT_TIMEOUT,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,    // Force IPv4 immediately to avoid 3-5s IPv6 DNS delay
+        CURLOPT_TCP_NODELAY    => 1,                    // Disable Nagle's algorithm for instant streaming
+        CURLOPT_TCP_KEEPALIVE  => 1,
+        CURLOPT_BUFFERSIZE     => 524288,               // 512 KB high-throughput memory buffer
+        CURLOPT_ENCODING       => '',                   // Fast gzip/deflate decoding from Telegram
         CURLOPT_NOPROGRESS     => true,
     ]);
 

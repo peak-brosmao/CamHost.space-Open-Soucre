@@ -98,9 +98,8 @@ export default function UploadPage() {
 
     const folderIdParam = selectedFolderId ? selectedFolderId : null;
 
-    for (let i = 0; i < fileQueue.length; i++) {
-      const item = fileQueue[i];
-      if (item.status === 'done') continue;
+    const uploadSingleItem = async (item) => {
+      if (item.status === 'done') return;
 
       setFileQueue((prev) =>
         prev.map((it) => (it.id === item.id ? { ...it, status: 'uploading', progress: 0 } : it))
@@ -113,14 +112,20 @@ export default function UploadPage() {
       }
 
       try {
-        await uploadWithProgress('/upload', formData, (percent) => {
+        const res = await uploadWithProgress('/upload', formData, (percent) => {
           setFileQueue((prev) =>
             prev.map((it) => (it.id === item.id ? { ...it, progress: percent } : it))
           );
         });
 
+        const shareUrl = res?.share_url || res?.file?.share_url || (res?.share_token ? `${window.location.origin}/share/${res.share_token}` : '');
+
         setFileQueue((prev) =>
-          prev.map((it) => (it.id === item.id ? { ...it, status: 'done', progress: 100 } : it))
+          prev.map((it) =>
+            it.id === item.id
+              ? { ...it, status: 'done', progress: 100, shareUrl, fileData: res?.file }
+              : it
+          )
         );
       } catch (err) {
         setFileQueue((prev) =>
@@ -130,12 +135,16 @@ export default function UploadPage() {
         );
         showToast(`Failed to upload ${item.name}: ${err.message || 'Error'}`, 'error');
       }
+    };
+
+    for (let i = 0; i < fileQueue.length; i++) {
+      await uploadSingleItem(fileQueue[i]);
     }
 
     setUploading(false);
     setAllDone(true);
     refreshUser();
-    showToast('Upload process completed!', 'success');
+    showToast('All files stored in Telegram Cloud successfully!', 'success');
   };
 
   return (
@@ -257,9 +266,15 @@ export default function UploadPage() {
                             </div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                               {formatBytes(item.size)}
-                              {item.status === 'uploading' && ` · ${item.progress}%`}
-                              {item.status === 'done' && ' · Completed'}
-                              {item.status === 'error' && ` · ${item.error}`}
+                              {item.status === 'uploading' && (
+                                item.progress >= 99 ? (
+                                  <span style={{ color: 'var(--cyan)', fontWeight: 600 }}> · Saving to Telegram Cloud…</span>
+                                ) : (
+                                  ` · ${item.progress}%`
+                                )
+                              )}
+                              {item.status === 'done' && <span style={{ color: '#00e08b', fontWeight: 600 }}> · Stored in Telegram Cloud</span>}
+                              {item.status === 'error' && <span style={{ color: '#ff4d6d' }}> · {item.error}</span>}
                             </div>
                           </div>
                         </div>
@@ -269,7 +284,7 @@ export default function UploadPage() {
                             <div
                               style={{
                                 width: `${item.progress}%`,
-                                background: 'var(--primary)',
+                                background: item.progress >= 99 ? 'var(--cyan)' : 'var(--primary)',
                                 height: '100%',
                                 transition: 'width 0.2s ease',
                               }}
@@ -278,11 +293,26 @@ export default function UploadPage() {
                         )}
 
                         {item.status === 'done' && (
-                          <span style={{ color: '#00e08b', display: 'flex', alignItems: 'center' }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {item.shareUrl && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '3px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 4 }}
+                                onClick={() => {
+                                  navigator.clipboard.writeText(item.shareUrl);
+                                  showToast('Direct public share link copied to clipboard!', 'success');
+                                }}
+                              >
+                                Copy Link ↗
+                              </button>
+                            )}
+                            <span style={{ color: '#00e08b', display: 'flex', alignItems: 'center' }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </span>
+                          </div>
                         )}
 
                         {item.status === 'pending' && !uploading && (
