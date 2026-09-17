@@ -322,15 +322,7 @@ function handleDownloadFile(int $id): void {
         db()->prepare('UPDATE files SET downloads = downloads + 1 WHERE id = ?')->execute([$id]);
     } catch (Exception $e) {}
 
-    $info = getTelegramFileInfo($file['telegram_file_id']);
-    if (!$info['ok'] || empty($info['result']['file_path'])) {
-        jsonError('Could not retrieve file stream from Telegram', 502);
-    }
-
-    $filePath    = $info['result']['file_path'];
-    $downloadUrl = TELEGRAM_FILE_BASE . '/' . $filePath;
-
-    proxyDownload($downloadUrl, $file['original_name'], $file['mime_type']);
+    streamTelegramFile($file['telegram_file_id'], $file['original_name'], $file['mime_type'], (int)($file['size_bytes'] ?? 0));
 }
 
 /**
@@ -338,7 +330,7 @@ function handleDownloadFile(int $id): void {
  * Public endpoint: streams the shared file download.
  */
 function handleDownloadSharedFile(string $token): void {
-    $stmt = db()->prepare('SELECT id, telegram_file_id, original_name, mime_type, is_blocked, COALESCE(downloads, 0) as downloads, download_limit FROM files WHERE share_token = ? AND is_public = 1');
+    $stmt = db()->prepare('SELECT id, telegram_file_id, original_name, mime_type, size_bytes, is_blocked, COALESCE(downloads, 0) as downloads, download_limit FROM files WHERE share_token = ? AND is_public = 1');
     $stmt->execute([$token]);
     $file = $stmt->fetch();
 
@@ -359,15 +351,7 @@ function handleDownloadSharedFile(string $token): void {
         db()->prepare('UPDATE files SET downloads = downloads + 1 WHERE id = ?')->execute([$file['id']]);
     } catch (Exception $e) {}
 
-    $info = getTelegramFileInfo($file['telegram_file_id']);
-    if (!$info['ok'] || empty($info['result']['file_path'])) {
-        jsonError('Could not retrieve file stream from Telegram', 502);
-    }
-
-    $filePath    = $info['result']['file_path'];
-    $downloadUrl = TELEGRAM_FILE_BASE . '/' . $filePath;
-
-    proxyDownload($downloadUrl, $file['original_name'], $file['mime_type']);
+    streamTelegramFile($file['telegram_file_id'], $file['original_name'], $file['mime_type'], (int)($file['size_bytes'] ?? 0));
 }
 
 /**
@@ -465,8 +449,41 @@ function deleteFromTelegram(int $messageId): bool {
  * This hides the bot token from the browser.
  * Uses chunked streaming to handle files up to 2 GB without memory issues.
  */
-function proxyDownload(string $url, string $name, string $mime): void {
-    // Disable output buffering to stream large files efficiently
+/**
+ * Stream a single file or a multi-part chunked file from Telegram.
+ */
+function streamTelegramFile(string $telegramFileId, string $originalName, string $mimeType, int $sizeBytes = 0): void {
+    $chunkIds = null;
+    $trimmed = trim($telegramFileId);
+    if (str_starts_with($trimmed, '[')) {
+        $decoded = json_decode($trimmed, true);
+        if (is_array($decoded) && !empty($decoded)) {
+            $chunkIds = $decoded;
+        }
+    }
+
+    if ($chunkIds !== null) {
+        proxyDownloadChunks($chunkIds, $originalName, $mimeType, $sizeBytes);
+        return;
+    }
+
+    $info = getTelegramFileInfo($telegramFileId);
+    if (!$info['ok'] || empty($info['result']['file_path'])) {
+        jsonError('Could not retrieve file stream from Telegram', 502);
+    }
+
+    $filePath    = $info['result']['file_path'];
+    $downloadUrl = TELEGRAM_FILE_BASE . '/' . $filePath;
+
+    proxyDownload($downloadUrl, $originalName, $mimeType, $sizeBytes);
+}
+
+/**
+ * Stream the Telegram download URL through PHP to the client.
+ * Uses chunked streaming to handle files up to 2 GB without memory issues.
+ */
+function proxyDownload(string $url, string $name, string $mime, int $sizeBytes = 0): void {
+    @set_time_limit(3600);
     while (ob_get_level()) ob_end_clean();
 
     $safeName = basename($name);
@@ -477,26 +494,78 @@ function proxyDownload(string $url, string $name, string $mime): void {
 
     header('Content-Type: ' . ($mime ?: 'application/octet-stream'));
     header('Content-Disposition: attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . $encodedName);
-    header('X-Accel-Buffering: no');   // Disable nginx/cPanel buffering
+    if ($sizeBytes > 0) {
+        header('Content-Length: ' . $sizeBytes);
+    }
+    header('X-Accel-Buffering: no');
     header('Cache-Control: private, no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => false,
-        CURLOPT_TIMEOUT        => CURL_UPLOAD_TIMEOUT,  // Reuse large-file timeout
+        CURLOPT_TIMEOUT        => CURL_UPLOAD_TIMEOUT,
         CURLOPT_CONNECTTIMEOUT => CURL_CONNECT_TIMEOUT,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_BUFFERSIZE     => 131072, // 128 KB chunks for smooth streaming
+        CURLOPT_BUFFERSIZE     => 131072,
         CURLOPT_WRITEFUNCTION  => function($curl, $data) {
             echo $data;
-            flush(); // Push each chunk to browser immediately
+            flush();
             return strlen($data);
         },
     ]);
 
     curl_exec($ch);
     curl_close($ch);
+    exit;
+}
+
+/**
+ * Stream multi-part chunks consecutively to the client.
+ * Reassembles chunks on-the-fly into one seamless file stream in the browser.
+ */
+function proxyDownloadChunks(array $chunkIds, string $name, string $mime, int $sizeBytes = 0): void {
+    @set_time_limit(3600);
+    while (ob_get_level()) ob_end_clean();
+
+    $safeName = basename($name);
+    if (empty($safeName)) $safeName = 'download';
+    $asciiName = preg_replace('/[^\x20-\x7e]/', '', str_replace(['"', ';', '\\', '/'], '', $safeName));
+    if (empty($asciiName)) $asciiName = 'download';
+    $encodedName = rawurlencode($safeName);
+
+    header('Content-Type: ' . ($mime ?: 'application/octet-stream'));
+    header('Content-Disposition: attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . $encodedName);
+    if ($sizeBytes > 0) {
+        header('Content-Length: ' . $sizeBytes);
+    }
+    header('X-Accel-Buffering: no');
+    header('Cache-Control: private, no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+
+    foreach ($chunkIds as $chunkId) {
+        $info = getTelegramFileInfo($chunkId);
+        if (!$info['ok'] || empty($info['result']['file_path'])) {
+            continue;
+        }
+
+        $chunkUrl = TELEGRAM_FILE_BASE . '/' . $info['result']['file_path'];
+        $ch = curl_init($chunkUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_TIMEOUT        => 3600,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_BUFFERSIZE     => 131072,
+            CURLOPT_WRITEFUNCTION  => function($curl, $data) {
+                echo $data;
+                flush();
+                return strlen($data);
+            },
+        ]);
+        curl_exec($ch);
+        curl_close($ch);
+    }
     exit;
 }
 
