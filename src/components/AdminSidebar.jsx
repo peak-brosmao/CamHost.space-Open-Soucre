@@ -357,11 +357,11 @@ export default function AdminSidebar({ isOpen, onClose }) {
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               {theme === 'dark' ? <IconSun /> : <IconMoon />}
-              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
-            <button className="admin-logout-btn" onClick={handleLogout}>
+            <button className="admin-logout-btn" onClick={handleLogout} title="Sign Out">
               <IconLogout />
-              Sign Out
+              <span>Sign Out</span>
             </button>
           </div>
         </div>

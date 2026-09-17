@@ -1554,9 +1554,9 @@ tbody tr:hover td {
 :root,
 [data-theme="dark"] {
   --adm-bg:            #080a12;
-  --adm-surface:       #0f1422;
-  --adm-elevated:      #161d30;
-  --adm-elevated-hover:#1d263e;
+  --adm-surface:       #0e1322;
+  --adm-elevated:      #151c2e;
+  --adm-elevated-hover:#1c253d;
   --adm-border:        rgba(255, 255, 255, 0.08);
   --adm-border-hi:     rgba(99, 102, 241, 0.45);
   --adm-border-focus:  #6366f1;
@@ -1565,8 +1565,9 @@ tbody tr:hover td {
   --adm-violet:        #8b5cf6;
   --adm-indigo-dim:    rgba(99, 102, 241, 0.15);
   --adm-indigo-glow:   rgba(99, 102, 241, 0.25);
-  --adm-text:          #f8fafc;
+  --adm-text:          #ffffff;
   --adm-text-secondary:#cbd5e1;
+  --adm-nav-text:      #cbd5e1;
   --adm-muted:         #94a3b8;
   --adm-green:         #10b981;
   --adm-green-dim:     rgba(16, 185, 129, 0.15);
@@ -1575,7 +1576,7 @@ tbody tr:hover td {
   --adm-amber:         #f59e0b;
   --adm-amber-dim:     rgba(245, 158, 11, 0.15);
   --adm-cyan:          #06b6d4;
-  --adm-sidebar-w:     254px;
+  --adm-sidebar-w:     252px;
   --adm-radius:        10px;
   --adm-shadow:        0 4px 24px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04);
   --adm-shadow-sm:     0 2px 8px rgba(0, 0, 0, 0.3);
@@ -1583,12 +1584,12 @@ tbody tr:hover td {
 }
 
 [data-theme="light"] {
-  --adm-bg:            #f8fafc;
+  --adm-bg:            #f1f5f9;
   --adm-surface:       #ffffff;
-  --adm-elevated:      #f1f5f9;
-  --adm-elevated-hover:#e2e8f0;
+  --adm-elevated:      #f8fafc;
+  --adm-elevated-hover:#eef2f6;
   --adm-border:        #e2e8f0;
-  --adm-border-hi:     rgba(79, 70, 229, 0.4);
+  --adm-border-hi:     rgba(79, 70, 229, 0.45);
   --adm-border-focus:  #4f46e5;
   --adm-indigo:        #4f46e5;
   --adm-indigo-light:  #6366f1;
@@ -1597,25 +1598,27 @@ tbody tr:hover td {
   --adm-indigo-glow:   rgba(79, 70, 229, 0.15);
   --adm-text:          #0f172a;
   --adm-text-secondary:#334155;
+  --adm-nav-text:      #334155;
   --adm-muted:         #64748b;
   --adm-green:         #059669;
   --adm-green-dim:     rgba(5, 150, 105, 0.1);
-  --adm-red:           #e11d48;
-  --adm-red-dim:       rgba(225, 29, 72, 0.1);
+  --adm-red:           #dc2626;
+  --adm-red-dim:       rgba(220, 38, 38, 0.1);
   --adm-amber:         #d97706;
   --adm-amber-dim:     rgba(217, 119, 6, 0.1);
   --adm-cyan:          #0891b2;
-  --adm-sidebar-w:     254px;
+  --adm-sidebar-w:     252px;
   --adm-radius:        10px;
-  --adm-shadow:        0 4px 16px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
-  --adm-shadow-sm:     0 1px 3px rgba(15, 23, 42, 0.05);
-  --adm-topbar-shadow: 0 1px 0 rgba(79, 70, 229, 0.15), 0 2px 10px rgba(15, 23, 42, 0.05);
+  --adm-shadow:        0 4px 16px rgba(15, 23, 42, 0.07), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --adm-shadow-sm:     0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  --adm-topbar-shadow: 0 1px 0 rgba(79, 70, 229, 0.12), 0 2px 10px rgba(15, 23, 42, 0.04);
 }
 
 /* ── Layout ── */
 .admin-layout {
   display: flex;
   min-height: 100vh;
+  width: 100%;
   background: var(--adm-bg);
   color: var(--adm-text);
   font-family: var(--font);
@@ -1664,7 +1667,7 @@ tbody tr:hover td {
 
 /* Sidebar header */
 .admin-sidebar-header {
-  padding: 18px 16px 14px;
+  padding: 16px 14px 12px;
   border-bottom: 1px solid var(--adm-border);
   flex-shrink: 0;
 }
@@ -1675,26 +1678,26 @@ tbody tr:hover td {
   gap: 10px;
   text-decoration: none;
   color: var(--adm-text);
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .admin-sidebar-logo-icon {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 9px;
   background: linear-gradient(135deg, var(--adm-indigo), var(--adm-violet));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 0 16px var(--adm-indigo-glow);
+  box-shadow: 0 0 14px var(--adm-indigo-glow);
 }
 
 .admin-sidebar-brand {
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  line-height: 1.1;
+  line-height: 1.15;
   color: var(--adm-text);
 }
 
@@ -1702,10 +1705,10 @@ tbody tr:hover td {
 
 .admin-sidebar-tag {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.64rem;
   color: var(--adm-muted);
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   margin-top: 2px;
 }
@@ -1714,7 +1717,7 @@ tbody tr:hover td {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-radius: 7px;
   font-size: 0.78rem;
   font-weight: 500;
@@ -1729,14 +1732,14 @@ tbody tr:hover td {
   color: var(--adm-text);
   border-color: var(--adm-border-hi);
 }
-.admin-back-link svg { opacity: 0.7; }
+.admin-back-link svg { opacity: 0.75; }
 
 /* Sidebar nav */
 .admin-sidebar-nav {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 12px 10px 20px;
+  padding: 10px 8px 16px;
   scrollbar-width: thin;
   scrollbar-color: var(--adm-border) transparent;
 }
@@ -1746,10 +1749,10 @@ tbody tr:hover td {
 .admin-nav-divider {
   height: 1px;
   background: var(--adm-border);
-  margin: 10px 4px;
+  margin: 6px 4px;
 }
 
-.admin-nav-plain { margin-bottom: 4px; }
+.admin-nav-plain { margin-bottom: 2px; }
 
 /* Section header button */
 .admin-nav-group { margin-bottom: 2px; }
@@ -1758,37 +1761,40 @@ tbody tr:hover td {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 9px 5px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--adm-indigo);
+  padding: 7px 9px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--adm-nav-text);
   cursor: pointer;
-  border-radius: 6px;
-  transition: background 0.12s;
+  border-radius: 7px;
+  transition: all 0.12s ease;
   width: 100%;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   font-family: var(--font);
 }
-.admin-nav-group-header:hover { background: var(--adm-indigo-dim); }
+.admin-nav-group-header:hover {
+  background: var(--adm-elevated);
+  color: var(--adm-text);
+}
 
 .admin-nav-group-label { flex: 1; text-align: left; }
-.admin-nav-group-items { padding-left: 4px; }
+.admin-nav-group-items { padding-left: 2px; margin-top: 1px; }
 
 /* Nav items */
 .admin-nav-item {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 7px 10px;
+  gap: 8px;
+  padding: 7px 9px;
   border-radius: 7px;
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  color: var(--adm-muted);
+  color: var(--adm-nav-text);
   text-decoration: none;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: all 0.12s ease;
   cursor: pointer;
   margin: 1px 0;
   white-space: nowrap;
@@ -1809,18 +1815,38 @@ tbody tr:hover td {
   font-weight: 600;
   border-color: var(--adm-border-hi);
 }
-.admin-nav-item.active .admin-nav-icon { color: var(--adm-indigo); opacity: 1; }
-.admin-nav-item.sub { padding-left: 20px; font-size: 0.81rem; }
-.admin-nav-item.sub.active { background: var(--adm-indigo-dim); color: var(--adm-indigo); }
+.admin-nav-item.active .admin-nav-icon {
+  color: var(--adm-indigo);
+  opacity: 1;
+}
+
+.admin-nav-item.sub {
+  padding: 5px 9px 5px 28px;
+  font-size: 0.82rem;
+  color: var(--adm-muted);
+}
+.admin-nav-item.sub:hover {
+  color: var(--adm-text);
+  background: var(--adm-elevated);
+}
+.admin-nav-item.sub.active {
+  background: var(--adm-indigo-dim);
+  color: var(--adm-indigo);
+  font-weight: 600;
+}
 
 .admin-nav-icon {
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  opacity: 0.65;
+  opacity: 0.75;
   transition: opacity 0.12s, color 0.12s;
 }
-.admin-nav-item:hover .admin-nav-icon { opacity: 0.95; color: var(--adm-text); }
+.admin-nav-item:hover .admin-nav-icon,
+.admin-nav-group-header:hover .admin-nav-icon {
+  opacity: 1;
+  color: var(--adm-text);
+}
 
 .admin-nav-badge {
   font-size: 0.6rem;
@@ -1838,7 +1864,7 @@ tbody tr:hover td {
 /* Sidebar footer */
 .admin-sidebar-footer {
   border-top: 1px solid var(--adm-border);
-  padding: 12px 10px;
+  padding: 10px 10px 12px;
   flex-shrink: 0;
   background: var(--adm-surface);
 }
@@ -1846,30 +1872,30 @@ tbody tr:hover td {
 .admin-user-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  margin-bottom: 6px;
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
 }
 
 .admin-user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   background: linear-gradient(135deg, var(--adm-indigo), var(--adm-violet));
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #fff;
   flex-shrink: 0;
 }
 
 .admin-user-name {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1879,63 +1905,56 @@ tbody tr:hover td {
 
 .admin-role-badge {
   display: inline-block;
-  font-size: 0.6rem;
-  padding: 1px 6px;
+  font-size: 0.58rem;
+  padding: 1px 5px;
   border-radius: 100px;
   background: var(--adm-indigo-dim);
   color: var(--adm-indigo);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-top: 2px;
+  margin-top: 1px;
   border: 1px solid var(--adm-border-hi);
 }
 
 .admin-sidebar-footer-actions {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
 
-.admin-sidebar-mode-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 12px;
-  background: var(--adm-elevated);
-  border: 1px solid var(--adm-border);
-  border-radius: 7px;
-  color: var(--adm-text);
-  font-size: 0.78rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: var(--font);
-}
-.admin-sidebar-mode-btn:hover {
-  background: var(--adm-elevated-hover);
-  border-color: var(--adm-border-hi);
-}
-.admin-sidebar-mode-btn svg { color: var(--adm-indigo); }
-
+.admin-sidebar-mode-btn,
 .admin-logout-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  width: 100%;
-  padding: 7px 12px;
-  background: none;
-  border: 1px solid var(--adm-border);
+  gap: 6px;
+  padding: 6px 8px;
   border-radius: 7px;
-  color: var(--adm-muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
   font-family: var(--font);
+  white-space: nowrap;
+}
+
+.admin-sidebar-mode-btn {
+  background: var(--adm-elevated);
+  border: 1px solid var(--adm-border);
+  color: var(--adm-text);
+}
+.admin-sidebar-mode-btn:hover {
+  background: var(--adm-elevated-hover);
+  border-color: var(--adm-border-hi);
+  color: var(--adm-indigo);
+}
+.admin-sidebar-mode-btn svg { color: var(--adm-indigo); }
+
+.admin-logout-btn {
+  background: var(--adm-elevated);
+  border: 1px solid var(--adm-border);
+  color: var(--adm-muted);
 }
 .admin-logout-btn:hover {
   background: var(--adm-red-dim);
@@ -1949,7 +1968,7 @@ tbody tr:hover td {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  height: 56px;
+  height: 54px;
   background: var(--adm-surface);
   border-bottom: 1px solid var(--adm-border);
   position: sticky;
@@ -2020,11 +2039,11 @@ tbody tr:hover td {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 11px;
   border-radius: 7px;
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
-  color: var(--adm-muted);
+  color: var(--adm-text-secondary);
   font-size: 0.78rem;
   font-weight: 500;
   cursor: pointer;
@@ -2047,17 +2066,17 @@ tbody tr:hover td {
 .admin-topbar-user {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 4px 10px 4px 5px;
+  gap: 8px;
+  padding: 4px 9px 4px 5px;
   border-radius: 8px;
   border: 1px solid var(--adm-border);
   background: var(--adm-elevated);
 }
 
 .admin-topbar-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   background: linear-gradient(135deg, var(--adm-indigo), var(--adm-violet));
   display: flex;
   align-items: center;
@@ -2086,23 +2105,23 @@ tbody tr:hover td {
 }
 
 .admin-topbar-badge {
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   color: var(--adm-indigo);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* ── Content ── */
 .admin-content { flex: 1; overflow-y: auto; }
 
 .admin-page-content {
-  padding: 28px 28px 72px;
+  padding: 24px 28px 64px;
   max-width: 1360px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .admin-page-header {
@@ -2114,7 +2133,7 @@ tbody tr:hover td {
 }
 
 .admin-page-title {
-  font-size: 1.35rem;
+  font-size: 1.32rem;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -2156,7 +2175,7 @@ tbody tr:hover td {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 11px 16px;
   border-radius: var(--adm-radius);
   font-size: 0.845rem;
 }
@@ -2175,17 +2194,17 @@ tbody tr:hover td {
 .admin-stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .admin-stat-card {
   background: var(--adm-surface) !important;
   border: 1px solid var(--adm-border) !important;
   border-radius: var(--adm-radius);
-  padding: 20px 22px;
+  padding: 18px 20px;
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 14px;
   position: relative;
   overflow: hidden;
   transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s, background 0.2s;
@@ -2198,9 +2217,9 @@ tbody tr:hover td {
 }
 
 .admin-stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2213,7 +2232,7 @@ tbody tr:hover td {
 }
 
 .admin-stat-label {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: var(--adm-muted) !important;
   font-weight: 600;
   margin-bottom: 4px;
@@ -2222,7 +2241,7 @@ tbody tr:hover td {
 }
 
 .admin-stat-value {
-  font-size: 1.85rem;
+  font-size: 1.8rem;
   font-weight: 800;
   margin: 0;
   line-height: 1.1;
@@ -2231,9 +2250,9 @@ tbody tr:hover td {
 }
 
 .admin-stat-sub {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   color: var(--adm-muted) !important;
-  margin-top: 6px;
+  margin-top: 5px;
   font-weight: 500;
 }
 
@@ -2241,7 +2260,7 @@ tbody tr:hover td {
 .admin-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 /* Core admin card */
@@ -2250,7 +2269,7 @@ tbody tr:hover td {
   border: 1px solid var(--adm-border) !important;
   border-radius: var(--adm-radius) !important;
   box-shadow: var(--adm-shadow-sm) !important;
-  padding: 22px;
+  padding: 20px;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 
@@ -2263,7 +2282,7 @@ tbody tr:hover td {
 }
 
 .admin-card-title {
-  font-size: 0.95rem;
+  font-size: 0.94rem;
   font-weight: 700;
   margin: 0;
   letter-spacing: -0.01em;
@@ -2284,15 +2303,15 @@ tbody tr:hover td {
 .admin-card-badge.actions { background: var(--adm-amber-dim); color: var(--adm-amber); border: 1px solid var(--adm-amber); }
 
 /* Status list */
-.admin-status-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.admin-status-list { display: flex; flex-direction: column; gap: 9px; margin-top: 12px; }
 
 .admin-status-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.845rem;
+  font-size: 0.84rem;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-radius: 8px;
   background: var(--adm-elevated) !important;
   border: 1px solid var(--adm-border) !important;
@@ -2322,23 +2341,23 @@ tbody tr:hover td {
 /* Env grid */
 .admin-env-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .admin-env-item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: 3px;
+  padding: 9px 12px;
   border-radius: 8px;
   background: var(--adm-elevated) !important;
   border: 1px solid var(--adm-border) !important;
 }
 
 .admin-env-label {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   color: var(--adm-muted) !important;
   display: block;
   text-transform: uppercase;
@@ -2348,7 +2367,7 @@ tbody tr:hover td {
 
 .admin-env-val {
   color: var(--adm-text) !important;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
@@ -2357,14 +2376,14 @@ tbody tr:hover td {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.84rem;
+  font-size: 0.83rem;
   margin-bottom: 8px;
 }
 .admin-storage-used-text { color: var(--adm-text); font-weight: 600; }
 .admin-storage-unlimited { color: var(--adm-muted); font-weight: 500; }
 
 .admin-progress-track {
-  height: 7px;
+  height: 6px;
   background: var(--adm-elevated) !important;
   border-radius: 100px;
   overflow: hidden;
@@ -2375,8 +2394,8 @@ tbody tr:hover td {
 .admin-storage-stat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 /* Mini stat */
@@ -2384,20 +2403,20 @@ tbody tr:hover td {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 14px;
+  padding: 11px 13px;
   border-radius: 8px;
   background: var(--adm-elevated) !important;
   border: 1px solid var(--adm-border) !important;
 }
 .admin-mini-stat-label {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   color: var(--adm-muted) !important;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 600;
 }
 .admin-mini-stat-val {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   font-weight: 800;
   line-height: 1.1;
 }
@@ -2408,20 +2427,20 @@ tbody tr:hover td {
 .admin-quick-action-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 7px;
+  margin-top: 12px;
 }
 
 .admin-quick-action {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
   border-radius: 8px;
   color: var(--adm-text);
-  font-size: 0.84rem;
+  font-size: 0.83rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.14s;
@@ -2447,7 +2466,7 @@ tbody tr:hover td {
 .admin-search-wrap {
   position: relative;
   flex: 1;
-  max-width: 380px;
+  max-width: 360px;
 }
 
 .admin-search-icon {
@@ -2461,12 +2480,12 @@ tbody tr:hover td {
 
 .admin-search-input {
   width: 100%;
-  padding: 8px 14px 8px 34px;
+  padding: 7px 14px 7px 34px;
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
   border-radius: 7px;
   color: var(--adm-text);
-  font-size: 0.845rem;
+  font-size: 0.84rem;
   font-family: var(--font);
   outline: none;
   transition: border-color 0.15s, background 0.15s;
@@ -2475,7 +2494,7 @@ tbody tr:hover td {
 .admin-search-input::placeholder { color: var(--adm-muted); }
 
 .admin-count-badge {
-  font-size: 0.77rem;
+  font-size: 0.76rem;
   color: var(--adm-muted);
   white-space: nowrap;
   background: var(--adm-elevated);
@@ -2493,12 +2512,12 @@ tbody tr:hover td {
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
   padding: 3px;
-  border-radius: 9px;
+  border-radius: 8px;
   width: fit-content;
 }
 
 .admin-filter-tab {
-  padding: 5px 14px;
+  padding: 5px 12px;
   border-radius: 6px;
   background: transparent;
   border: none;
@@ -2526,7 +2545,7 @@ tbody tr:hover td {
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.845rem;
+  font-size: 0.84rem;
 }
 
 .admin-table thead tr {
@@ -2535,7 +2554,7 @@ tbody tr:hover td {
 }
 
 .admin-table th {
-  padding: 11px 16px;
+  padding: 10px 14px;
   text-align: left;
   font-weight: 600;
   font-size: 0.72rem;
@@ -2547,7 +2566,7 @@ tbody tr:hover td {
 }
 
 .admin-table td {
-  padding: 12px 16px;
+  padding: 11px 14px;
   border-bottom: 1px solid var(--adm-border);
   vertical-align: middle;
   color: var(--adm-text);
@@ -2570,7 +2589,7 @@ tbody tr:hover td {
   align-items: center;
   padding: 2px 8px;
   border-radius: 100px;
-  font-size: 0.69rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -2591,7 +2610,7 @@ tbody tr:hover td {
 }
 
 .admin-btn-xs {
-  padding: 4px 10px;
+  padding: 4px 9px;
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 600;
@@ -2600,12 +2619,11 @@ tbody tr:hover td {
   transition: all 0.13s;
   white-space: nowrap;
   font-family: var(--font);
-  letter-spacing: 0.01em;
 }
 .admin-btn-xs.secondary {
   background: var(--adm-elevated);
   border-color: var(--adm-border);
-  color: var(--adm-muted);
+  color: var(--adm-text-secondary);
 }
 .admin-btn-xs.secondary:hover { border-color: var(--adm-border-hi); color: var(--adm-text); background: var(--adm-indigo-dim); }
 .admin-btn-xs.danger { background: var(--adm-red-dim); border-color: var(--adm-red); color: var(--adm-red); }
@@ -2645,7 +2663,7 @@ tbody tr:hover td {
 .admin-modal {
   width: 100% !important;
   max-width: 440px !important;
-  padding: 24px !important;
+  padding: 22px !important;
   background: var(--adm-surface) !important;
   border: 1px solid var(--adm-border-hi) !important;
   border-radius: var(--adm-radius) !important;
@@ -2664,12 +2682,12 @@ tbody tr:hover td {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--adm-border);
 }
 .admin-modal-title { font-size: 1rem; font-weight: 700; margin: 0; letter-spacing: -0.01em; color: var(--adm-text); }
-.admin-modal-sub { font-size: 0.79rem; color: var(--adm-muted); margin-top: 3px; }
+.admin-modal-sub { font-size: 0.78rem; color: var(--adm-muted); margin-top: 3px; }
 .admin-modal-close {
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
@@ -2688,8 +2706,8 @@ tbody tr:hover td {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 18px;
-  padding-top: 14px;
+  margin-top: 16px;
+  padding-top: 12px;
   border-top: 1px solid var(--adm-border);
 }
 
@@ -2703,8 +2721,8 @@ tbody tr:hover td {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 0.845rem;
-  padding: 10px 12px;
+  font-size: 0.84rem;
+  padding: 9px 12px;
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
   border-radius: 7px;
@@ -2741,7 +2759,7 @@ tbody tr:hover td {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  padding: 36px 20px;
+  padding: 32px 20px;
   text-align: center;
   color: var(--adm-muted);
   font-size: 0.845rem;
@@ -2752,7 +2770,7 @@ tbody tr:hover td {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 9px 13px;
   border-radius: 7px;
   background: var(--adm-elevated);
   border: 1px solid var(--adm-border);
@@ -2775,7 +2793,7 @@ tbody tr:hover td {
 .admin-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   margin-bottom: 14px;
 }
 .admin-field:last-child { margin-bottom: 0; }
@@ -2786,10 +2804,10 @@ tbody tr:hover td {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  font-size: 0.845rem;
+  font-size: 0.84rem;
   font-weight: 500;
-  margin-bottom: 12px;
-  padding: 10px 12px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
   border-radius: 8px;
   border: 1px solid var(--adm-border);
   background: var(--adm-elevated);
@@ -2819,7 +2837,7 @@ tbody tr:hover td {
 .admin-layout .form-label {
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--adm-muted);
+  color: var(--adm-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
