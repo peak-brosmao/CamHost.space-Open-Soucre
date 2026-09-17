@@ -89,24 +89,71 @@ function updateCountdown() {
 setInterval(updateCountdown, 1000);
 updateCountdown();
 
+// ── Google Sheets Integration ──
+// 👇 Paste your Apps Script Web App URL here after deploying
+const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+
 // ── Signup Form ──
-function handleSignup(e) {
+async function handleSignup(e) {
   e.preventDefault();
-  const form    = document.getElementById('signup-form');
-  const success = document.getElementById('signup-success');
-  const btn     = document.getElementById('notify-btn');
 
-  btn.innerHTML = '✓ Done!';
-  btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
+  const form      = document.getElementById('signup-form');
+  const success   = document.getElementById('signup-success');
+  const errorMsg  = document.getElementById('signup-error');
+  const btn       = document.getElementById('notify-btn');
+  const emailInput = document.getElementById('email-input');
+  const email     = emailInput.value.trim();
+
+  // Loading state
   btn.disabled = true;
-  form.reset();
-  success.classList.add('visible');
+  btn.innerHTML = '<span class="btn-text">Saving...</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16" class="spin-icon"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
 
-  setTimeout(() => {
-    btn.innerHTML = '<span class="btn-text">Notify Me</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
-    btn.style.background = '';
-    btn.disabled = false;
-  }, 3000);
+  // Hide previous messages
+  success.classList.remove('visible');
+  if (errorMsg) errorMsg.classList.remove('visible');
+
+  try {
+    if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
+      throw new Error('Apps Script URL not configured yet.');
+    }
+
+    const url = `${APPS_SCRIPT_URL}?email=${encodeURIComponent(email)}`;
+    const res  = await fetch(url, { method: 'GET', mode: 'cors' });
+    const data = await res.json();
+
+    if (data.success) {
+      // ✅ Success
+      btn.innerHTML = '✓ Saved!';
+      btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
+      form.reset();
+      success.classList.add('visible');
+
+      setTimeout(() => {
+        btn.innerHTML = '<span class="btn-text">Notify Me</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 3000);
+    } else {
+      throw new Error(data.message || 'Something went wrong.');
+    }
+
+  } catch (err) {
+    // ❌ Error state
+    btn.innerHTML = '✗ Failed';
+    btn.style.background = 'linear-gradient(135deg, #ff4d4d, #cc0000)';
+    if (errorMsg) {
+      errorMsg.textContent = '⚠️ ' + err.message;
+      errorMsg.classList.add('visible');
+    } else {
+      alert('Error: ' + err.message);
+    }
+
+    setTimeout(() => {
+      btn.innerHTML = '<span class="btn-text">Notify Me</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+      btn.style.background = '';
+      btn.disabled = false;
+    }, 3000);
+  }
 }
 
 // ── Animated Canvas Background ──

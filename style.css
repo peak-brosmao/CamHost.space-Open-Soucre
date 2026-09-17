@@ -555,9 +555,29 @@ body {
 
 .signup-success.visible { display: block; }
 
+.signup-error {
+  display: none;
+  margin-top: 14px;
+  color: #ff6b6b;
+  font-size: 0.88rem;
+  font-weight: 500;
+  animation: fade-in 0.4s ease;
+}
+
+.signup-error.visible { display: block; }
+
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Spinning loader icon inside button */
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* ── How It Works ── */
