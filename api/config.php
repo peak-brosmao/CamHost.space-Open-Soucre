@@ -95,3 +95,14 @@ define('APP_URL',     env('APP_URL', 'https://api.camhost.space'));
 // ── Strict CORS & Domain Protection ──
 // Strictly allowed frontend origins. Multiple domains can be comma-separated.
 define('ALLOWED_ORIGINS', env('ALLOWED_ORIGINS', 'https://camhost.space,http://localhost:3000,http://localhost:5173'));
+
+// ── Hostinger SMTP Settings ──
+define('SMTP_HOST',      env('SMTP_HOST', 'smtp.hostinger.com'));
+define('SMTP_PORT',      (int)env('SMTP_PORT', 465));
+define('SMTP_SECURE',    env('SMTP_SECURE', 'ssl'));
+define('SMTP_USER',      env('SMTP_USER', 'support@camhost.space'));
+define('SMTP_PASS',      env('SMTP_PASS', ''));
+define('SMTP_FROM',      env('SMTP_FROM', 'support@camhost.space'));
+define('SMTP_FROM_NAME', env('SMTP_FROM_NAME', 'CamHost.space'));
+define('FRONTEND_URL',   env('FRONTEND_URL', 'https://camhost.space'));
+

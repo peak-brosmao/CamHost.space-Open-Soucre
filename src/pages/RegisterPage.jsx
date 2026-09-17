@@ -93,10 +93,10 @@ export default function RegisterPage() {
                   </svg>
                 </div>
 
-                <h1 className="auth-title">Verify Your Account</h1>
+                <h1 className="auth-title">Check Your Email</h1>
                 <p className="auth-subtitle" style={{ marginBottom: '20px' }}>
-                  To protect your cloud storage from automated bots, an activation link has been generated for{' '}
-                  <strong>{activationInfo.email}</strong>.
+                  An activation email has been dispatched from <strong>support@camhost.space</strong> to{' '}
+                  <strong>{activationInfo.email}</strong>. Please check your inbox or spam folder.
                 </p>
 
                 <div
@@ -110,7 +110,7 @@ export default function RegisterPage() {
                   }}
                 >
                   <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                    Your Activation Link:
+                    Direct Activation Link:
                   </span>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
                     <input
@@ -126,13 +126,13 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                <a
-                  href={activationInfo.url}
+                <Link
+                  to={`/verify-account?token=${encodeURIComponent(activationInfo.token || '')}`}
                   className="btn btn-primary"
                   style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
                 >
-                  Activate Account Now
-                </a>
+                  Activate Account Instantly
+                </Link>
 
                 <div style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
                   <Link to="/login" className="auth-link">

@@ -195,14 +195,20 @@ function handleRegister(): void {
         $stmt->execute([$email, $hash, 'user', $verifyToken, $verifyExpires]);
         $newId = (int)db()->lastInsertId();
 
-        $verifyUrl = 'https://camhost.space/verify-account?token=' . $verifyToken;
+        $verifyUrl = FRONTEND_URL . '/verify-account?token=' . $verifyToken;
+
+        require_once __DIR__ . '/mailer.php';
+        $emailResult = sendActivationEmail($email, $verifyUrl);
 
         jsonSuccess([
             'requires_verification' => true,
             'verification_url'      => $verifyUrl,
             'token'                 => $verifyToken,
+            'email_sent'            => $emailResult['sent'] ?? false,
             'user'                  => ['id' => $newId, 'email' => $email, 'role' => 'user'],
-            'message'               => 'Account created! Please verify your account using the activation link.',
+            'message'               => ($emailResult['sent'] ?? false)
+                ? 'Account created! An activation link has been sent to your email from support@camhost.space.'
+                : 'Account created! Please verify your account using the activation link.',
         ], 201);
     } catch (PDOException $e) {
         if (str_contains($e->getMessage(), 'UNIQUE')) {
@@ -292,12 +298,18 @@ function handleResendVerification(): void {
         $update = db()->prepare('UPDATE users SET verification_token = ?, verification_expires = ? WHERE id = ?');
         $update->execute([$newToken, $newExpires, $user['id']]);
 
-        $verifyUrl = 'https://camhost.space/verify-account?token=' . $newToken;
+        $verifyUrl = FRONTEND_URL . '/verify-account?token=' . $newToken;
+
+        require_once __DIR__ . '/mailer.php';
+        $emailResult = sendActivationEmail($user['email'], $verifyUrl);
 
         jsonSuccess([
             'sent'             => true,
             'verification_url' => $verifyUrl,
-            'message'          => 'A fresh activation link has been generated.',
+            'email_sent'       => $emailResult['sent'] ?? false,
+            'message'          => ($emailResult['sent'] ?? false)
+                ? 'A fresh activation link has been sent to ' . $user['email'] . ' from support@camhost.space.'
+                : 'A fresh activation link has been generated.',
         ]);
     }
 
