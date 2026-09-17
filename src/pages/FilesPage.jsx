@@ -88,24 +88,35 @@ export default function FilesPage() {
   const filteredFiles = files
     .filter((f) => {
       if (!searchQuery) return true;
-      return f.file_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const name = f.file_name || f.original_name || f.name || '';
+      return name.toLowerCase().includes(searchQuery.toLowerCase());
     })
     .sort((a, b) => {
+      const nameA = a.file_name || a.original_name || a.name || '';
+      const nameB = b.file_name || b.original_name || b.name || '';
+      const sizeA = a.file_size ?? a.size_bytes ?? a.size ?? 0;
+      const sizeB = b.file_size ?? b.size_bytes ?? b.size ?? 0;
+
       if (sortBy === 'newest') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
       if (sortBy === 'oldest') return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-      if (sortBy === 'name_asc') return (a.file_name || '').localeCompare(b.file_name || '');
-      if (sortBy === 'name_desc') return (b.file_name || '').localeCompare(a.file_name || '');
-      if (sortBy === 'size_desc') return (b.file_size || 0) - (a.file_size || 0);
-      if (sortBy === 'size_asc') return (a.file_size || 0) - (b.file_size || 0);
+      if (sortBy === 'name_asc') return nameA.localeCompare(nameB);
+      if (sortBy === 'name_desc') return nameB.localeCompare(nameA);
+      if (sortBy === 'size_desc') return sizeB - sizeA;
+      if (sortBy === 'size_asc') return sizeA - sizeB;
       return 0;
     });
 
   // Action Handlers
   const handleDownload = async (file) => {
+    const fileName = file.file_name || file.original_name || file.name || 'download';
     try {
-      showToast(`Downloading: ${file.file_name}...`, 'info');
-      await downloadFile(`/files/${file.id}/download`, file.file_name);
-      showToast(`Downloaded: ${file.file_name}`, 'success');
+      showToast(`Downloading: ${fileName}...`, 'info');
+      await downloadFile(`/files/${file.id}/download`, fileName);
+      showToast(`Downloaded: ${fileName}`, 'success');
+      // Increment local download count for immediate visual feedback
+      setFiles((prev) =>
+        prev.map((f) => (f.id === file.id ? { ...f, downloads: (f.downloads || 0) + 1 } : f))
+      );
     } catch (err) {
       showToast(err.message || 'Download failed', 'error');
     }
@@ -113,7 +124,8 @@ export default function FilesPage() {
 
   // Open Rename Modal
   const openRename = (file) => {
-    setRenameModal({ isOpen: true, file, newName: file.file_name, loading: false });
+    const fileName = file.file_name || file.original_name || file.name || '';
+    setRenameModal({ isOpen: true, file, newName: fileName, loading: false });
   };
 
   const handleRenameSubmit = async () => {
@@ -377,6 +389,9 @@ export default function FilesPage() {
             <div className="files-grid">
               {filteredFiles.map((f) => {
                 const info = mimeInfo(f.mime_type || '');
+                const fileName = f.file_name || f.original_name || f.name || 'Untitled File';
+                const fileSize = f.file_size ?? f.size_bytes ?? f.size ?? 0;
+                const downloads = f.downloads ?? 0;
                 return (
                   <div key={f.id} className="file-card">
                     <div className="file-card-preview">
@@ -401,11 +416,12 @@ export default function FilesPage() {
                     </div>
 
                     <div className="file-card-info">
-                      <div className="file-card-name" title={f.file_name}>
-                        {f.file_name}
+                      <div className="file-card-name" title={fileName}>
+                        {fileName}
                       </div>
                       <div className="file-card-meta">
-                        <span>{formatBytes(f.file_size)}</span>
+                        <span>{formatBytes(fileSize)}</span>
+                        <span title={`${downloads} download${downloads !== 1 ? 's' : ''}`}>{downloads} {downloads === 1 ? 'dl' : 'dls'}</span>
                         <span>{relativeDate(f.created_at)}</span>
                       </div>
                     </div>
@@ -482,6 +498,7 @@ export default function FilesPage() {
                     <th>Name</th>
                     <th>Size</th>
                     <th>Type</th>
+                    <th>Downloads</th>
                     <th>Uploaded</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
@@ -489,6 +506,9 @@ export default function FilesPage() {
                 <tbody>
                   {filteredFiles.map((f) => {
                     const info = mimeInfo(f.mime_type || '');
+                    const fileName = f.file_name || f.original_name || f.name || 'Untitled File';
+                    const fileSize = f.file_size ?? f.size_bytes ?? f.size ?? 0;
+                    const downloads = f.downloads ?? 0;
                     return (
                       <tr key={f.id}>
                         <td>
@@ -499,8 +519,8 @@ export default function FilesPage() {
                             >
                               {info.label}
                             </span>
-                            <span className="table-file-name" title={f.file_name}>
-                              {f.file_name}
+                            <span className="table-file-name" title={fileName}>
+                              {fileName}
                             </span>
                             {f.is_public === 1 && (
                               <span className="shared-badge-mini" title="Public link active">
@@ -509,9 +529,19 @@ export default function FilesPage() {
                             )}
                           </div>
                         </td>
-                        <td>{formatBytes(f.file_size)}</td>
+                        <td>{formatBytes(fileSize)}</td>
                         <td>
                           <span className="mime-pill">{f.mime_type || 'Unknown'}</span>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" style={{ opacity: 0.7 }}>
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            {downloads}
+                          </span>
                         </td>
                         <td>{relativeDate(f.created_at)}</td>
                         <td>
@@ -624,7 +654,7 @@ export default function FilesPage() {
         ) : (
           <div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '14px' }}>
-              Anyone with this link can view and download <strong>{shareModal.file?.file_name}</strong> without an account.
+              Anyone with this link can view and download <strong>{shareModal.file?.file_name || shareModal.file?.original_name || 'this file'}</strong> without an account.
             </p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input
@@ -681,7 +711,7 @@ export default function FilesPage() {
         loading={deleteModal.loading}
       >
         <p style={{ color: 'var(--text)', fontSize: '0.94rem' }}>
-          Are you sure you want to delete <strong>{deleteModal.file?.file_name}</strong>?
+          Are you sure you want to delete <strong>{deleteModal.file?.file_name || deleteModal.file?.original_name || 'this file'}</strong>?
         </p>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '6px' }}>
           This action cannot be undone. The file will be removed from your cloud storage.

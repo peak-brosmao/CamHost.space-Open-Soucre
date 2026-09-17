@@ -39,7 +39,7 @@ function handleListFiles(): void {
         }
     }
 
-    $sql = "SELECT id, folder_id, original_name, mime_type, size_bytes, share_token, is_public, description, created_at
+    $sql = "SELECT id, folder_id, original_name, mime_type, size_bytes, share_token, is_public, description, COALESCE(downloads, 0) as downloads, created_at
             FROM files
             $where
             ORDER BY $sort $order
@@ -55,13 +55,21 @@ function handleListFiles(): void {
     $countStmt->execute($params);
     $total = (int)$countStmt->fetchColumn();
 
-    // Enrich with human-readable size
+    // Enrich with human-readable size and consistent aliases
     foreach ($files as &$file) {
-        $file['size_human'] = formatBytes((int)$file['size_bytes']);
-        $file['id']         = (int)$file['id'];
-        $file['size_bytes'] = (int)$file['size_bytes'];
-        $file['is_public']  = (int)($file['is_public'] ?? 0);
-        $file['share_url']  = !empty($file['share_token']) ? 'https://camhost.space/share.html?token=' . $file['share_token'] : null;
+        $file['id']            = (int)$file['id'];
+        $origName              = !empty($file['original_name']) ? $file['original_name'] : 'Untitled File';
+        $file['original_name'] = $origName;
+        $file['file_name']     = $origName;
+        $file['name']          = $origName;
+        $sizeBytes             = (int)($file['size_bytes'] ?? 0);
+        $file['size_bytes']    = $sizeBytes;
+        $file['file_size']     = $sizeBytes;
+        $file['size']          = $sizeBytes;
+        $file['size_human']    = formatBytes($sizeBytes);
+        $file['downloads']     = (int)($file['downloads'] ?? 0);
+        $file['is_public']     = (int)($file['is_public'] ?? 0);
+        $file['share_url']     = !empty($file['share_token']) ? 'https://camhost.space/share.html?token=' . $file['share_token'] : null;
     }
 
     jsonSuccess([
@@ -80,9 +88,17 @@ function handleGetFile(int $id): void {
     $user = requireAuth();
     $file = fetchFile($id, $user['id']);
 
-    $file['size_human'] = formatBytes((int)$file['size_bytes']);
-    $file['id']         = (int)$file['id'];
-    $file['size_bytes'] = (int)$file['size_bytes'];
+    $file['id']            = (int)$file['id'];
+    $origName              = !empty($file['original_name']) ? $file['original_name'] : 'Untitled File';
+    $file['original_name'] = $origName;
+    $file['file_name']     = $origName;
+    $file['name']          = $origName;
+    $sizeBytes             = (int)($file['size_bytes'] ?? 0);
+    $file['size_bytes']    = $sizeBytes;
+    $file['file_size']     = $sizeBytes;
+    $file['size']          = $sizeBytes;
+    $file['size_human']    = formatBytes($sizeBytes);
+    $file['downloads']     = (int)($file['downloads'] ?? 0);
 
     jsonSuccess(['file' => $file]);
 }
@@ -116,7 +132,7 @@ function handleRenameFile(int $id): void {
     $file = fetchFile($id, $user['id']);
 
     $body = json_decode(file_get_contents('php://input'), true);
-    $name = trim($body['name'] ?? '');
+    $name = trim($body['name'] ?? $body['file_name'] ?? '');
 
     if (!$name) {
         jsonError('New file name cannot be empty', 400);
@@ -135,6 +151,8 @@ function handleRenameFile(int $id): void {
         'message' => 'File renamed successfully',
         'file' => [
             'id' => $id,
+            'name' => $name,
+            'file_name' => $name,
             'original_name' => $name,
         ]
     ]);
@@ -175,7 +193,7 @@ function handleShareFile(int $id): void {
  * Public endpoint: returns public file information without requiring authentication.
  */
 function handleGetSharedFile(string $token): void {
-    $stmt = db()->prepare('SELECT id, original_name, mime_type, size_bytes, created_at FROM files WHERE share_token = ? AND is_public = 1');
+    $stmt = db()->prepare('SELECT id, original_name, mime_type, size_bytes, COALESCE(downloads, 0) as downloads, created_at FROM files WHERE share_token = ? AND is_public = 1');
     $stmt->execute([$token]);
     $file = $stmt->fetch();
 
@@ -183,9 +201,17 @@ function handleGetSharedFile(string $token): void {
         jsonError('Shared file not found or link has been disabled', 404);
     }
 
-    $file['id']         = (int)$file['id'];
-    $file['size_bytes'] = (int)$file['size_bytes'];
-    $file['size_human'] = formatBytes((int)$file['size_bytes']);
+    $file['id']            = (int)$file['id'];
+    $origName              = !empty($file['original_name']) ? $file['original_name'] : 'Shared File';
+    $file['original_name'] = $origName;
+    $file['file_name']     = $origName;
+    $file['name']          = $origName;
+    $sizeBytes             = (int)($file['size_bytes'] ?? 0);
+    $file['size_bytes']    = $sizeBytes;
+    $file['file_size']     = $sizeBytes;
+    $file['size']          = $sizeBytes;
+    $file['size_human']    = formatBytes($sizeBytes);
+    $file['downloads']     = (int)($file['downloads'] ?? 0);
 
     jsonSuccess(['file' => $file]);
 }

@@ -31,7 +31,9 @@ export default function SharePage() {
     loadSharedFile();
   }, [token]);
 
-  const downloadUrl = `${API_BASE}/share/${token}/download`;
+  const fileName = file ? (file.file_name || file.original_name || file.name || 'Shared File') : 'Shared File';
+  const fileSize = file ? (file.file_size ?? file.size_bytes ?? file.size ?? 0) : 0;
+  const downloads = file ? (file.downloads ?? 0) : 0;
 
   return (
     <div className="auth-page">
@@ -151,7 +153,7 @@ export default function SharePage() {
                     color: 'var(--text)',
                   }}
                 >
-                  {file.file_name}
+                  {fileName}
                 </h1>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>
                   Uploaded {relativeDate(file.created_at)}
@@ -188,9 +190,19 @@ export default function SharePage() {
                       {file.mime_type || 'Generic Document'}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      {formatBytes(file.file_size)}
+                      {formatBytes(fileSize)}
                     </div>
                   </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" style={{ opacity: 0.7 }}>
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    {downloads} {downloads === 1 ? 'download' : 'downloads'}
+                  </span>
                 </div>
               </div>
 
@@ -200,7 +212,8 @@ export default function SharePage() {
                 onClick={async () => {
                   setDownloading(true);
                   try {
-                    await downloadFile(`/share/${token}/download`, file.file_name);
+                    await downloadFile(`/share/${token}/download`, fileName);
+                    setFile((prev) => (prev ? { ...prev, downloads: (prev.downloads || 0) + 1 } : prev));
                   } catch (err) {
                     alert(err.message || 'Download failed');
                   } finally {
@@ -230,7 +243,7 @@ export default function SharePage() {
                       <polyline points="7 10 12 15 17 10" />
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
-                    Download File ({formatBytes(file.file_size)})
+                    Download File ({formatBytes(fileSize)})
                   </>
                 )}
               </button>

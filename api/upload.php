@@ -90,13 +90,16 @@ function handleUpload(): void {
         jsonError('Telegram returned no file_id. Check bot permissions.', 502);
     }
 
+    $folderId = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
+
     // ── Save metadata to SQLite ─────────────────────────────────
     $stmt = db()->prepare('
-        INSERT INTO files (user_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ');
     $stmt->execute([
         $user['id'],
+        $folderId,
         $originalName,
         $mimeType,
         $sizeBytes,
@@ -110,10 +113,18 @@ function handleUpload(): void {
     jsonSuccess([
         'file' => [
             'id'            => (int)$newId,
+            'folder_id'     => $folderId,
             'name'          => $originalName,
+            'file_name'     => $originalName,
+            'original_name' => $originalName,
             'mime'          => $mimeType,
+            'mime_type'     => $mimeType,
             'size'          => $sizeBytes,
+            'file_size'     => $sizeBytes,
+            'size_bytes'    => $sizeBytes,
             'size_human'    => formatBytes($sizeBytes),
+            'downloads'     => 0,
+            'is_public'     => 0,
             'description'   => $description ?: null,
             'created_at'    => date('c'),
         ],
