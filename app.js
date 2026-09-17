@@ -94,56 +94,41 @@ updateCountdown();
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2fR43IfPXi3N-w-ek-tXXTiuA5xGRYQfTYZEWVSU4c0GL6KjFC-q82vSu3jMRA1oWhg/exec';
 
 /**
- * Submit a GET request via hidden iframe + form.
- * This bypasses ALL CORS restrictions — works from file://, http://, https://.
- * Form submissions are never blocked by browser CORS policies.
+ * Submit via JSONP — uses a <script> tag which has ZERO CORS restrictions.
+ * Works from file://, http://, https:// — any origin.
+ * Requires Apps Script to support ?callback= parameter (JSONP).
  */
-function submitViaIframe(url, email) {
+function submitViaJSONP(url, email) {
   return new Promise((resolve) => {
-    const frameName = 'gs-frame-' + Date.now();
+    const cbName = '__gs_cb_' + Date.now();
 
-    // Create hidden iframe
-    const iframe = document.createElement('iframe');
-    iframe.name = frameName;
-    iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
-    document.body.appendChild(iframe);
+    // Global callback the Apps Script will call
+    window[cbName] = function (data) {
+      cleanup();
+      resolve(data);
+    };
 
-    // Create hidden GET form targeting the iframe
-    // ⚠️ IMPORTANT: email must be a form INPUT FIELD, not in the action URL.
-    // GET form submissions REPLACE the action query string with form fields.
-    const hiddenForm = document.createElement('form');
-    hiddenForm.method = 'GET';
-    hiddenForm.action = url;           // Base URL — no query string here
-    hiddenForm.target = frameName;
-    hiddenForm.style.display = 'none';
+    const script = document.createElement('script');
+    script.src = `${url}?email=${encodeURIComponent(email)}&callback=${cbName}`;
 
-    // Add email as hidden input field
-    const emailField = document.createElement('input');
-    emailField.type = 'hidden';
-    emailField.name = 'email';
-    emailField.value = email;
-    hiddenForm.appendChild(emailField);
-
-    // Add cache-busting timestamp
-    const tsField = document.createElement('input');
-    tsField.type = 'hidden';
-    tsField.name = 't';
-    tsField.value = Date.now();
-    hiddenForm.appendChild(tsField);
-
-    document.body.appendChild(hiddenForm);
-
-    // Cleanup after load or timeout
     function cleanup() {
-      try { document.body.removeChild(iframe); } catch (e) { }
-      try { document.body.removeChild(hiddenForm); } catch (e) { }
-      resolve();
+      delete window[cbName];
+      try { document.head.removeChild(script); } catch (e) { }
     }
 
-    iframe.onload = cleanup;
-    setTimeout(cleanup, 6000);
+    // Network error
+    script.onerror = () => {
+      cleanup();
+      resolve({ success: false, message: 'Network error — check your connection.' });
+    };
 
-    hiddenForm.submit();
+    // Timeout fallback (6s)
+    setTimeout(() => {
+      cleanup();
+      resolve({ success: true }); // Assume sent if no error
+    }, 6000);
+
+    document.head.appendChild(script);
   });
 }
 
@@ -171,9 +156,12 @@ async function handleSignup(e) {
       throw new Error('Apps Script URL not configured yet.');
     }
 
-    // Hidden iframe + form submission — zero CORS restrictions, works from file://
-    // Email is passed as a hidden input field (not in URL) to avoid GET form stripping query strings
-    await submitViaIframe(APPS_SCRIPT_URL, email);
+    // JSONP — zero CORS restrictions, works from any origin, gets real response
+    const data = await submitViaJSONP(APPS_SCRIPT_URL, email);
+
+    if (data && data.success === false) {
+      throw new Error(data.message || 'Something went wrong.');
+    }
 
     // ✅ Success
     btn.innerHTML = '✓ Saved!';
