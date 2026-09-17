@@ -1,0 +1,48 @@
+# Apache .htaccess — api.camhost.space BACKEND
+# Deploy the contents of the api/ folder as the root of this subdomain.
+# Place this .htaccess at the root of api.camhost.space's document root.
+
+Options -Indexes
+
+# ── Block direct database access ─────────────────────────────────
+<FilesMatch "\.(db|sqlite|sqlite3)$">
+    Require all denied
+</FilesMatch>
+
+# ── Block access to data/ directory ──────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block /data/ directory entirely
+    RewriteRule ^data/ - [F,L]
+
+    # Route all API requests → index.php with PATH_INFO
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php/$1 [QSA,L]
+</IfModule>
+
+# ── CORS — allow requests from camhost.space ─────────────────────
+# Note: PHP already sets CORS headers dynamically via config.php.
+# These Apache headers act as a fallback for pre-flight OPTIONS.
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin  "https://camhost.space"
+    Header always set Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+    Header always set Access-Control-Max-Age       "86400"
+
+    # Security
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ── PHP Settings for large file uploads ──────────────────────────
+<IfModule mod_php.c>
+    php_value upload_max_filesize  2100M
+    php_value post_max_size        2200M
+    php_value max_execution_time   3600
+    php_value memory_limit         512M
+    php_flag  display_errors       Off
+    php_flag  log_errors           On
+</IfModule>

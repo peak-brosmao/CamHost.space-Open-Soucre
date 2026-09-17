@@ -1,0 +1,138 @@
+<?php
+// =============================================
+// CamHost.space — API Router / Entry Point
+// Developer: PEAK BROSMAO · peakbrosmao.me
+// =============================================
+// All requests to /api/* are routed here via .htaccess
+
+require_once __DIR__ . '/config.php';
+
+// ── CORS Headers ────────────────────────────────────────────────
+header('Access-Control-Allow-Origin: '  . CORS_ORIGIN);
+header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept');
+header('Access-Control-Max-Age: 86400');
+header('Content-Type: application/json; charset=UTF-8');
+
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+// ── Parse Route ──────────────────────────────────────────────────
+// PATH_INFO from .htaccess rewrite: /api/files/3/download → /files/3/download
+$rawPath = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+// Strip /api prefix if present (for setups without .htaccess mod_rewrite)
+$rawPath = preg_replace('#^/api#', '', $rawPath);
+$rawPath = rtrim($rawPath, '/') ?: '/';
+$method  = strtoupper($_SERVER['REQUEST_METHOD']);
+
+// ── Route Dispatch ───────────────────────────────────────────────
+try {
+
+    // ── Health check ──
+    if ($rawPath === '/' || $rawPath === '/health') {
+        jsonSuccess([
+            'app'     => APP_NAME,
+            'version' => APP_VERSION,
+            'status'  => 'ok',
+            'time'    => date('c'),
+        ]);
+    }
+
+    // ── Auth routes ──
+    if ($rawPath === '/auth/login'           && $method === 'POST')  { require __DIR__ . '/auth.php';   handleLogin();          exit; }
+    if ($rawPath === '/auth/register'        && $method === 'POST')  { require __DIR__ . '/auth.php';   handleRegister();       exit; }
+    if ($rawPath === '/auth/me'              && $method === 'GET')   { require __DIR__ . '/auth.php';   handleMe();             exit; }
+    if ($rawPath === '/auth/profile'         && $method === 'PUT')   { require __DIR__ . '/auth.php';   handleUpdateProfile();  exit; }
+    if ($rawPath === '/auth/change-password' && $method === 'POST')  { require __DIR__ . '/auth.php';   handleChangePassword(); exit; }
+
+    // ── Signup route ──
+    if ($rawPath === '/signup') {
+        require __DIR__ . '/signup.php';
+        handleSignup($method);
+        exit;
+    }
+
+    // ── Upload route ──
+    if ($rawPath === '/upload' && $method === 'POST') {
+        require __DIR__ . '/upload.php';
+        handleUpload();
+        exit;
+    }
+
+    // ── Folder routes — /folders, /folders/{id} ──
+    if (preg_match('#^/folders(?:/(\d+))?$#', $rawPath, $fm)) {
+        require __DIR__ . '/folders.php';
+        $fid = isset($fm[1]) ? (int)$fm[1] : null;
+        if ($fid === null && $method === 'GET')    { handleListFolders();         exit; }
+        if ($fid === null && $method === 'POST')   { handleCreateFolder();        exit; }
+        if ($fid !== null && $method === 'PUT')    { handleRenameFolder($fid);    exit; }
+        if ($fid !== null && $method === 'DELETE') { handleDeleteFolder($fid);    exit; }
+    }
+
+    // ── File routes — parse /files, /files/{id}, /files/{id}/download, /files/{id}/move, /files/{id}/rename, /files/{id}/share ──
+    if (preg_match('#^/files(?:/(\d+)(?:/(download|move|rename|share))?)?$#', $rawPath, $m)) {
+        require __DIR__ . '/files.php';
+
+        $id     = isset($m[1]) ? (int)$m[1] : null;
+        $action = $m[2] ?? null;
+
+        if ($id === null && $method === 'GET')                        { handleListFiles();         exit; }
+        if ($id !== null && $action === null && $method === 'GET')    { handleGetFile($id);        exit; }
+        if ($id !== null && $action === null && $method === 'DELETE') { handleDeleteFile($id);     exit; }
+        if ($id !== null && $action === 'download')                   { handleDownloadFile($id);   exit; }
+        if ($id !== null && $action === 'rename'  && $method === 'PUT') { handleRenameFile($id);   exit; }
+        if ($id !== null && $action === 'share'   && $method === 'POST'){ handleShareFile($id);    exit; }
+        if ($id !== null && $action === 'move'    && $method === 'PUT') {
+            // Move file to a folder: body { folder_id: int|null }
+            $body     = json_decode(file_get_contents('php://input'), true);
+            $folderId = isset($body['folder_id']) ? (int)$body['folder_id'] : null;
+            $user     = requireAuth();
+            $stmt     = db()->prepare('UPDATE files SET folder_id = ? WHERE id = ? AND user_id = ?');
+            $stmt->execute([$folderId ?: null, $id, $user['id']]);
+            jsonSuccess(['message' => 'File moved successfully']);
+            exit;
+        }
+    }
+
+    // ── Public File Share routes — /share/{token}, /share/{token}/download ──
+    if (preg_match('#^/share/([a-zA-Z0-9_-]+)(?:/(download))?$#', $rawPath, $sm)) {
+        require __DIR__ . '/files.php';
+        $token     = $sm[1];
+        $subAction = $sm[2] ?? null;
+
+        if ($subAction === null && $method === 'GET') {
+            handleGetSharedFile($token);
+            exit;
+        }
+        if ($subAction === 'download') {
+            handleDownloadSharedFile($token);
+            exit;
+        }
+    }
+
+    // ── 404 ──
+    jsonError('Route not found: ' . $method . ' ' . $rawPath, 404);
+
+} catch (Throwable $e) {
+    // Log internally but don't leak stack traces to client
+    error_log('[CamHost API Error] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    jsonError('Internal server error', 500);
+}
+
+// ── JSON Response Helpers ────────────────────────────────────────
+
+function jsonSuccess(array $data, int $code = 200): void {
+    http_response_code($code);
+    echo json_encode(['success' => true, ...$data], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
+function jsonError(string $message, int $code = 400): void {
+    http_response_code($code);
+    echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+    exit;
+}

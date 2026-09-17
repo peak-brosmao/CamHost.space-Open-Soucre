@@ -1,0 +1,2 @@
+# SQLite database will be created here automatically at runtime.
+# This directory must be writable by the web server (chmod 755 data/).

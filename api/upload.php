@@ -1,0 +1,170 @@
+<?php
+// =============================================
+// CamHost.space — File Upload Handler
+// Developer: PEAK BROSMAO · peakbrosmao.me
+// =============================================
+// Receives multipart file upload, streams to Telegram Bot API,
+// saves metadata to SQLite.
+
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/auth.php';
+
+/**
+ * POST /api/upload
+ * Multipart form-data: file (required), description (optional)
+ * Returns: { success: true, file: {...} }
+ */
+function handleUpload(): void {
+    $user = requireAuth();
+
+    // ── Validate uploaded file ──────────────────────────────────
+    if (empty($_FILES['file'])) {
+        jsonError('No file uploaded. Use field name "file".', 400);
+    }
+
+    $f = $_FILES['file'];
+
+    if ($f['error'] !== UPLOAD_ERR_OK) {
+        $errors = [
+            UPLOAD_ERR_INI_SIZE   => 'File exceeds server upload limit (upload_max_filesize)',
+            UPLOAD_ERR_FORM_SIZE  => 'File exceeds form MAX_FILE_SIZE',
+            UPLOAD_ERR_PARTIAL    => 'File was only partially uploaded',
+            UPLOAD_ERR_NO_FILE    => 'No file was uploaded',
+            UPLOAD_ERR_NO_TMP_DIR => 'Server temp directory missing',
+            UPLOAD_ERR_CANT_WRITE => 'Server failed to write file',
+            UPLOAD_ERR_EXTENSION  => 'Upload blocked by PHP extension',
+        ];
+        jsonError($errors[$f['error']] ?? 'Upload error code ' . $f['error'], 400);
+    }
+
+    // Size check (PHP may have already enforced php.ini limits)
+    $maxBytes = UPLOAD_MAX_MB * 1024 * 1024;
+    if ($f['size'] > $maxBytes) {
+        jsonError('File too large. Max allowed: ' . UPLOAD_MAX_MB . ' MB', 413);
+    }
+
+    $originalName = basename($f['name']);
+    $mimeType     = mime_content_type($f['tmp_name']) ?: 'application/octet-stream';
+    $sizeBytes    = $f['size'];
+    $description  = trim($_POST['description'] ?? '');
+    $tmpPath      = $f['tmp_name'];
+
+    // ── Send to Telegram ────────────────────────────────────────
+    $result = sendToTelegram($tmpPath, $originalName, $mimeType, $description);
+
+    if (!$result['ok']) {
+        jsonError('Telegram upload failed: ' . ($result['description'] ?? 'Unknown error'), 502);
+    }
+
+    $msg        = $result['result'];
+    $messageId  = $msg['message_id'];
+    $fileId     = extractFileId($msg);
+
+    if (!$fileId) {
+        jsonError('Telegram returned no file_id. Check bot permissions.', 502);
+    }
+
+    // ── Save metadata to SQLite ─────────────────────────────────
+    $stmt = db()->prepare('
+        INSERT INTO files (user_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ');
+    $stmt->execute([
+        $user['id'],
+        $originalName,
+        $mimeType,
+        $sizeBytes,
+        $fileId,
+        $messageId,
+        $description ?: null,
+    ]);
+
+    $newId = db()->lastInsertId();
+
+    jsonSuccess([
+        'file' => [
+            'id'            => (int)$newId,
+            'name'          => $originalName,
+            'mime'          => $mimeType,
+            'size'          => $sizeBytes,
+            'size_human'    => formatBytes($sizeBytes),
+            'description'   => $description ?: null,
+            'created_at'    => date('c'),
+        ],
+        'message' => 'File uploaded successfully',
+        'mode'    => TELEGRAM_LOCAL_MODE ? 'local-api (2 GB)' : 'cloud-api (50 MB)',
+    ], 201);
+}
+
+// ── Telegram Helpers ────────────────────────────────────────────
+
+/**
+ * Upload a file to the configured Telegram chat via sendDocument.
+ */
+function sendToTelegram(string $path, string $name, string $mime, string $caption = ''): array {
+    $url  = TELEGRAM_API_BASE . '/sendDocument';
+    $data = [
+        'chat_id'              => TELEGRAM_CHAT_ID,
+        'caption'              => $caption ?: $name,
+        'parse_mode'           => 'HTML',
+        'disable_notification' => 'true',
+        'document'             => new CURLFile($path, $mime, $name),
+    ];
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $data,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => CURL_UPLOAD_TIMEOUT,   // 1 hour for 2 GB in local mode
+        CURLOPT_CONNECTTIMEOUT => CURL_CONNECT_TIMEOUT,
+        // Progress: keep connection alive during large uploads
+        CURLOPT_NOPROGRESS     => false,
+        CURLOPT_PROGRESSFUNCTION => function($ch, $dlTotal, $dlNow, $ulTotal, $ulNow) {
+            // Prevent PHP timeout by flushing output buffer heartbeat (silent)
+            if (ob_get_level()) ob_flush();
+            return 0; // return non-zero to abort
+        },
+    ]);
+
+    $response = curl_exec($ch);
+    $curlErr  = curl_error($ch);
+    curl_close($ch);
+
+    if ($curlErr) {
+        return ['ok' => false, 'description' => 'cURL error: ' . $curlErr];
+    }
+
+    $json = json_decode($response, true);
+    return $json ?: ['ok' => false, 'description' => 'Invalid JSON from Telegram'];
+}
+
+/**
+ * Extract the Telegram file_id from any message type.
+ * Telegram returns different keys depending on file type.
+ */
+function extractFileId(array $msg): ?string {
+    // Documents and other files
+    if (!empty($msg['document']))  return $msg['document']['file_id'];
+    if (!empty($msg['video']))     return $msg['video']['file_id'];
+    if (!empty($msg['audio']))     return $msg['audio']['file_id'];
+    if (!empty($msg['voice']))     return $msg['voice']['file_id'];
+
+    // Photos — use the largest size
+    if (!empty($msg['photo'])) {
+        $largest = end($msg['photo']);
+        return $largest['file_id'] ?? null;
+    }
+
+    return null;
+}
+
+// ── Utility ─────────────────────────────────────────────────────
+
+function formatBytes(int $bytes): string {
+    if ($bytes >= 1073741824) return round($bytes / 1073741824, 2) . ' GB';
+    if ($bytes >= 1048576)    return round($bytes / 1048576,    2) . ' MB';
+    if ($bytes >= 1024)       return round($bytes / 1024,       2) . ' KB';
+    return $bytes . ' B';
+}
