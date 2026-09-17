@@ -16,6 +16,10 @@ require_once __DIR__ . '/auth.php';
  * Returns: { success: true, file: {...} }
  */
 function handleUpload(): void {
+    @set_time_limit(3600);
+    @ini_set('max_execution_time', '3600');
+    @ini_set('memory_limit', '512M');
+
     $user = requireVerified();
 
     // ── Upload Rate Limit (Anti-abuse) ──────────────────────────

@@ -237,7 +237,7 @@ export default function UploadPage() {
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
                 <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  Max file size: <strong style={{ color: 'var(--cyan)' }}>50 MB</strong> (Telegram Cloud API) · <strong style={{ color: '#a78bfa' }}>2 GB</strong> (Local Bot Server)
+                  Max file size: <strong style={{ color: 'var(--cyan)' }}>2 GB</strong> · All file formats supported
                 </span>
               </div>
             </div>
@@ -277,9 +277,9 @@ export default function UploadPage() {
                             </div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                               {formatBytes(item.size)}
-                              {item.size > 50 * 1024 * 1024 && item.status === 'pending' && (
-                                <span style={{ marginLeft: '6px', color: '#ffab2e', fontSize: '0.72rem', background: 'rgba(255, 171, 46, 0.12)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(255, 171, 46, 0.25)' }}>
-                                  &gt; 50 MB (Requires Local Bot API)
+                              {item.size > 2000 * 1024 * 1024 && item.status === 'pending' && (
+                                <span style={{ marginLeft: '6px', color: '#ff4d6d', fontSize: '0.72rem', background: 'rgba(255, 77, 109, 0.12)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(255, 77, 109, 0.25)' }}>
+                                  &gt; 2 GB (Exceeds maximum limit)
                                 </span>
                               )}
                               {item.status === 'uploading' && (

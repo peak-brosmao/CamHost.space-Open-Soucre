@@ -32,12 +32,28 @@
     Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# ── PHP Settings for large file uploads ──────────────────────────
+# ── PHP Settings for large file uploads (2 GB) ───────────────────
 <IfModule mod_php.c>
     php_value upload_max_filesize  2100M
     php_value post_max_size        2200M
     php_value max_execution_time   3600
+    php_value max_input_time       3600
     php_value memory_limit         512M
     php_flag  display_errors       Off
     php_flag  log_errors           On
 </IfModule>
+<IfModule mod_php7.c>
+    php_value upload_max_filesize  2100M
+    php_value post_max_size        2200M
+    php_value max_execution_time   3600
+    php_value max_input_time       3600
+    php_value memory_limit         512M
+</IfModule>
+<IfModule mod_php8.c>
+    php_value upload_max_filesize  2100M
+    php_value post_max_size        2200M
+    php_value max_execution_time   3600
+    php_value max_input_time       3600
+    php_value memory_limit         512M
+</IfModule>
+
