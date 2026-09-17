@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { apiRequest } from '../api/client';
 import { useToast } from '../components/Toast';
+import Header from '../components/Header';
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -34,83 +35,7 @@ export default function LandingPage() {
 
   return (
     <div style={{ position: 'relative', zIndex: 10, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '24px 6%',
-          maxWidth: '1200px',
-          width: '100%',
-          margin: '0 auto',
-          borderBottom: '1px solid var(--border)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div className="sidebar-logo-icon" style={{ width: '40px', height: '40px' }}>
-            <svg viewBox="0 0 40 40" fill="none" width="22" height="22">
-              <path
-                d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z"
-                fill="url(#lgd)"
-              />
-              <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95" />
-              <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8" />
-              <defs>
-                <linearGradient id="lgd" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#00d4ff" />
-                  <stop offset="1" stopColor="#0077ff" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-          <span style={{ fontSize: '1.25rem', fontWeigh: '800', fontWeight: '800' }}>
-            CamHost<span style={{ color: 'var(--cyan)' }}>.space</span>
-          </span>
-        </div>
-
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <a href="#features" className="crumb-item">Features</a>
-          <a href="#preview" className="crumb-item">Explorer</a>
-          <a href="#how-it-works" className="crumb-item">How It Works</a>
-          <a href="#opensource" className="crumb-item">Open Source</a>
-        </nav>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button className="icon-btn" onClick={toggleTheme} title="Toggle theme">
-            {theme === 'dark' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <circle cx="12" cy="12" r="5" />
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
-            )}
-          </button>
-
-          {user ? (
-            <Link to="/files" className="btn btn-primary btn-sm">
-              My Files
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-            </Link>
-          ) : (
-            <>
-              <Link to="/login" className="btn btn-ghost btn-sm">Sign In</Link>
-              <Link to="/register" className="btn btn-primary btn-sm">
-                Get Started
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
-              </Link>
-            </>
-          )}
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '60px 20px 40px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
