@@ -43,14 +43,18 @@ export default function LoginPage() {
       return;
     }
     try {
-      showToast('Generating fresh activation link...', 'info');
+      showToast('Dispatching activation email...', 'info');
       const res = await apiRequest('/auth/resend-verification', {
         method: 'POST',
         body: { email: email.trim() },
       });
-      showToast('Activation link prepared!', 'success');
-      if (res.verification_url) {
+      if (res && res.email_sent) {
+        showToast('Activation email sent! Please check your inbox or spam folder.', 'success');
+      } else if (res && res.verification_url) {
+        showToast('Activation link prepared!', 'info');
         navigate(`/verify-account?token=${encodeURIComponent(res.verification_url.split('token=')[1] || '')}`);
+      } else {
+        showToast(res.message || 'If an unverified account exists, an email was sent.', 'success');
       }
     } catch (err) {
       showToast(err.message || 'Failed to resend link', 'error');

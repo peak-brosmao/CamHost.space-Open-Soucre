@@ -259,17 +259,24 @@ function handleRegister(): void {
 
         require_once __DIR__ . '/mailer.php';
         $emailResult = sendActivationEmail($email, $verifyUrl);
+        $emailSent   = (bool)($emailResult['sent'] ?? false);
 
-        jsonSuccess([
+        $responseData = [
             'requires_verification' => true,
-            'verification_url'      => $verifyUrl,
-            'token'                 => $verifyToken,
-            'email_sent'            => $emailResult['sent'] ?? false,
+            'email_sent'            => $emailSent,
             'user'                  => ['id' => $newId, 'email' => $email, 'role' => 'user'],
-            'message'               => ($emailResult['sent'] ?? false)
-                ? 'Account created! An activation link has been sent to your email from support@camhost.space.'
+            'message'               => $emailSent
+                ? 'Account created! An activation link has been sent to your email from noreply@camhost.space.'
                 : 'Account created! Please verify your account using the activation link.',
-        ], 201);
+        ];
+
+        // Only provide verification link directly if email failed to send (development fallback)
+        if (!$emailSent) {
+            $responseData['verification_url'] = $verifyUrl;
+            $responseData['token']            = $verifyToken;
+        }
+
+        jsonSuccess($responseData, 201);
     } catch (PDOException $e) {
         if (str_contains($e->getMessage(), 'UNIQUE')) {
             jsonError('An account with this email already exists', 409);
@@ -356,15 +363,21 @@ function handleResendVerification(): void {
 
         require_once __DIR__ . '/mailer.php';
         $emailResult = sendActivationEmail($user['email'], $verifyUrl);
+        $emailSent   = (bool)($emailResult['sent'] ?? false);
 
-        jsonSuccess([
-            'sent'             => true,
-            'verification_url' => $verifyUrl,
-            'email_sent'       => $emailResult['sent'] ?? false,
-            'message'          => ($emailResult['sent'] ?? false)
-                ? 'A fresh activation link has been sent to ' . $user['email'] . ' from support@camhost.space.'
+        $responseData = [
+            'sent'       => true,
+            'email_sent' => $emailSent,
+            'message'    => $emailSent
+                ? 'A fresh activation link has been sent to ' . $user['email'] . ' from noreply@camhost.space.'
                 : 'A fresh activation link has been generated.',
-        ]);
+        ];
+
+        if (!$emailSent) {
+            $responseData['verification_url'] = $verifyUrl;
+        }
+
+        jsonSuccess($responseData);
     }
 
     // Generic response to prevent user enumeration

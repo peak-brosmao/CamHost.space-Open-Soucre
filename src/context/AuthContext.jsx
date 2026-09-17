@@ -79,7 +79,7 @@ export function AuthProvider({ children }) {
       method: 'POST',
       body: { email, password, confirm_password: confirmPassword },
     });
-    if (res.token) {
+    if (res.token && !res.requires_verification) {
       setToken(res.token);
       setUser(res.user);
       setTokenState(res.token);
