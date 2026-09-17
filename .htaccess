@@ -1,7 +1,8 @@
 # Apache .htaccess — camhost.space FRONTEND
 # Static site SPA for Apache & LiteSpeed (Hostinger)
 
-Options -Indexes
+
+DirectoryIndex index.html
 
 # ── Security Headers ─────────────────────────────────────────────
 <IfModule mod_headers.c>
