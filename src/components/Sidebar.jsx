@@ -124,6 +124,63 @@ export default function Sidebar({ isOpen, onClose }) {
           ))}
         </nav>
 
+        {/* Plan & Storage Quota Widget */}
+        <div
+          style={{
+            margin: '12px 14px 10px',
+            padding: '12px 14px',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+              Storage Plan
+            </span>
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: '6px',
+                background: user?.role === 'admin' ? 'rgba(123, 79, 255, 0.15)' : 'rgba(6, 182, 212, 0.15)',
+                color: user?.role === 'admin' ? '#a78bfa' : 'var(--cyan)',
+              }}
+            >
+              {user?.plan || (user?.role === 'admin' ? 'Unlimited Pro' : 'Free Plan')}
+            </span>
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text)', marginBottom: '6px' }}>
+              <span>Used</span>
+              <span style={{ fontWeight: 600 }}>
+                {user?.storage_used_human || '0 B'} / {user?.storage_quota_human || `${Number(user?.storage_quota_mb || user?.default_quota_mb || 10240).toLocaleString()} MB`}
+              </span>
+            </div>
+            {/* Progress Bar */}
+            <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  width: `${Math.max(2, Math.min(100, user?.storage_percent ?? 1))}%`,
+                  height: '100%',
+                  background: (user?.storage_percent ?? 0) > 90 ? '#ef4444' : 'linear-gradient(90deg, #00d4ff, #0077ff)',
+                  borderRadius: '999px',
+                  transition: 'width 0.4s ease',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              <span>Quota: {Number(user?.storage_quota_mb || user?.default_quota_mb || 10240).toLocaleString()} MB</span>
+              <span>{user?.storage_percent ?? 0}%</span>
+            </div>
+          </div>
+        </div>
+
         <div className="sidebar-footer">
           <div className="user-card">
             <div className="user-avatar">{displayName.charAt(0).toUpperCase()}</div>
@@ -144,6 +201,7 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
         </div>
       </aside>
+
     </>
   );
 }

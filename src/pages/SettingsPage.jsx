@@ -135,6 +135,55 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Storage Quota & Plan Card */}
+            <div className="glass-card" style={{ padding: '24px 28px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, color: 'var(--text)' }}>
+                    Storage Quota & Plan
+                  </h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', margin: '4px 0 0' }}>
+                    Your allocated cloud storage capacity powered by Telegram
+                  </p>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    background: user?.role === 'admin' ? 'rgba(123, 79, 255, 0.15)' : 'rgba(6, 182, 212, 0.15)',
+                    color: user?.role === 'admin' ? '#a78bfa' : 'var(--cyan)',
+                  }}
+                >
+                  {user?.plan || (user?.role === 'admin' ? 'Unlimited Admin' : 'Free Plan')}
+                </span>
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.86rem', color: 'var(--text)', marginBottom: '8px' }}>
+                  <span>Used: <strong>{user?.storage_used_human || '0 B'}</strong> ({Number(user?.storage_used_mb || 0).toLocaleString()} MB)</span>
+                  <span>Limit: <strong>{user?.storage_quota_human || `${Number(user?.storage_quota_mb || user?.default_quota_mb || 10240).toLocaleString()} MB`}</strong></span>
+                </div>
+                <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.08)', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      width: `${Math.max(1, Math.min(100, user?.storage_percent ?? 1))}%`,
+                      height: '100%',
+                      background: (user?.storage_percent ?? 0) > 90 ? '#ef4444' : 'linear-gradient(90deg, #00d4ff, #0077ff)',
+                      borderRadius: '999px',
+                      transition: 'width 0.4s ease',
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  <span>Default Storage Quota per User: <strong>{Number(user?.default_quota_mb || 10240).toLocaleString()} MB</strong></span>
+                  <span>{user?.storage_percent ?? 0}% utilized</span>
+                </div>
+              </div>
+            </div>
+
+
             {/* Profile Settings Card */}
             <div className="glass-card" style={{ padding: '28px' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '6px' }}>Profile Information</h2>

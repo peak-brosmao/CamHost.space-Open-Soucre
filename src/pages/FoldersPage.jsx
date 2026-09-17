@@ -163,10 +163,22 @@ export default function FoldersPage() {
 
     const menuWidth = 200;
     const menuHeight = 180;
-    let x = e.clientX;
-    let y = e.clientY;
-    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
-    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    let x = clientX;
+    let y = clientY;
+
+    // Center horizontally if right-clicked too far right or left
+    if (clientX > window.innerWidth - 260 || clientX < 200) {
+      x = Math.max(16, Math.round((window.innerWidth - menuWidth) / 2));
+    } else {
+      x = Math.max(16, Math.min(clientX, window.innerWidth - menuWidth - 20));
+    }
+
+    if (y + menuHeight > window.innerHeight - 20) {
+      y = Math.max(16, window.innerHeight - menuHeight - 20);
+    }
 
     setContextMenu({
       isOpen: true,
@@ -185,10 +197,22 @@ export default function FoldersPage() {
 
     const menuWidth = 180;
     const menuHeight = 140;
-    let x = e.clientX;
-    let y = e.clientY;
-    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
-    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    let x = clientX;
+    let y = clientY;
+
+    // Center horizontally if right-clicked too far right or left
+    if (clientX > window.innerWidth - 240 || clientX < 180) {
+      x = Math.max(16, Math.round((window.innerWidth - menuWidth) / 2));
+    } else {
+      x = Math.max(16, Math.min(clientX, window.innerWidth - menuWidth - 20));
+    }
+
+    if (y + menuHeight > window.innerHeight - 20) {
+      y = Math.max(16, window.innerHeight - menuHeight - 20);
+    }
 
     setContextMenu({
       isOpen: true,
@@ -198,6 +222,7 @@ export default function FoldersPage() {
       folder: null,
     });
   };
+
 
   // Filtered folders
   const filteredFolders = folders.filter((folder) => {

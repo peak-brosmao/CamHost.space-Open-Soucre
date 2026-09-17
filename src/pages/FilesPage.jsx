@@ -442,12 +442,25 @@ export default function FilesPage() {
     e.stopPropagation();
     setSelectedFileId(file.id);
 
-    const menuWidth = 220;
-    const menuHeight = 310;
-    let x = e.clientX;
-    let y = e.clientY;
-    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
-    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+    const menuWidth = 230;
+    const menuHeight = 320;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    let x = clientX;
+    let y = clientY;
+
+    // Center horizontally if right-clicked too far right or left
+    if (clientX > window.innerWidth - 280 || clientX < 220) {
+      x = Math.max(16, Math.round((window.innerWidth - menuWidth) / 2));
+    } else {
+      x = Math.max(16, Math.min(clientX, window.innerWidth - menuWidth - 20));
+    }
+
+    // Vertical boundary check
+    if (y + menuHeight > window.innerHeight - 20) {
+      y = Math.max(16, window.innerHeight - menuHeight - 20);
+    }
 
     setContextMenu({
       isOpen: true,
@@ -465,12 +478,25 @@ export default function FilesPage() {
     }
     e.preventDefault();
 
-    const menuWidth = 200;
+    const menuWidth = 210;
     const menuHeight = 220;
-    let x = e.clientX;
-    let y = e.clientY;
-    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
-    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    let x = clientX;
+    let y = clientY;
+
+    // Center horizontally if right-clicked too far right or left
+    if (clientX > window.innerWidth - 260 || clientX < 200) {
+      x = Math.max(16, Math.round((window.innerWidth - menuWidth) / 2));
+    } else {
+      x = Math.max(16, Math.min(clientX, window.innerWidth - menuWidth - 20));
+    }
+
+    // Vertical boundary check
+    if (y + menuHeight > window.innerHeight - 20) {
+      y = Math.max(16, window.innerHeight - menuHeight - 20);
+    }
 
     setContextMenu({
       isOpen: true,
@@ -480,6 +506,7 @@ export default function FilesPage() {
       file: null,
     });
   };
+
 
   // Active folder object
   const currentFolder = folders.find((f) => String(f.id) === String(selectedFolderId));

@@ -3035,12 +3035,14 @@ tbody tr:hover td {
   position: fixed;
   z-index: 9999;
   min-width: 220px;
+  max-width: min(280px, calc(100vw - 32px));
+  box-sizing: border-box;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -3125,7 +3127,9 @@ tbody tr:hover td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 260px;
 }
+
 
 /* Selected row highlight */
 .data-table tr.selected-row {

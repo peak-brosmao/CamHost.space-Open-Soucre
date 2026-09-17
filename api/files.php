@@ -370,7 +370,58 @@ function handleDownloadSharedFile(string $token): void {
     proxyDownload($downloadUrl, $file['original_name'], $file['mime_type']);
 }
 
+/**
+ * POST /api/share/{token}/report
+ * Public endpoint: report a shared file for policy/DMCA/abuse violation.
+ */
+function handleReportSharedFile(string $token): void {
+    $stmt = db()->prepare('SELECT id, original_name, description, is_blocked FROM files WHERE share_token = ?');
+    $stmt->execute([$token]);
+    $file = $stmt->fetch();
+
+    if (!$file) {
+        jsonError('Shared file not found or invalid token', 404);
+    }
+
+    $raw = file_get_contents('php://input');
+    $body = json_decode($raw, true) ?? [];
+
+    $reason  = trim($body['reason'] ?? 'Abuse / Policy Violation');
+    $details = trim($body['details'] ?? '');
+    $reporterEmail = trim($body['email'] ?? '');
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+    if (empty($reason)) {
+        jsonError('Reason for report is required', 400);
+    }
+
+    // Insert into audit_logs so administrators see it immediately in Admin panel
+    try {
+        $logStmt = db()->prepare('INSERT INTO audit_logs (admin_id, action, target_type, target_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)');
+        $logStmt->execute([
+            null,
+            'FILE_REPORTED',
+            'file',
+            (string)$file['id'],
+            "Report: {$reason}. Email: {$reporterEmail}. Details: {$details}",
+            $ip,
+        ]);
+    } catch (Exception $e) {}
+
+    // Tag file description with reported note
+    try {
+        $existing = trim($file['description'] ?? '');
+        $updatedDesc = $existing ? ($existing . " [REPORTED: {$reason}]") : "[REPORTED: {$reason}]";
+        db()->prepare('UPDATE files SET description = ? WHERE id = ?')->execute([$updatedDesc, $file['id']]);
+    } catch (Exception $e) {}
+
+    jsonSuccess([
+        'message' => 'Thank you for your report. The file has been flagged and submitted for administrative moderation.',
+    ]);
+}
+
 // ── Telegram Helpers ────────────────────────────────────────────
+
 
 function getTelegramFileInfo(string $fileId): array {
     $url = TELEGRAM_API_BASE . '/getFile?file_id=' . urlencode($fileId);

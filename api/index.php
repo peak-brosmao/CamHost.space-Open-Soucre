@@ -174,8 +174,8 @@ try {
         if ($id !== null && $action === 'move'    && $method === 'PUT') { handleUpdateFile($id);    exit; }
     }
 
-    // ── Public File Share routes — /share/{token}, /share/{token}/download ──
-    if (preg_match('#^/share/([a-zA-Z0-9_-]+)(?:/(download))?$#', $rawPath, $sm)) {
+    // ── Public File Share routes — /share/{token}, /share/{token}/download, /share/{token}/report ──
+    if (preg_match('#^/share/([a-zA-Z0-9_-]+)(?:/(download|report))?$#', $rawPath, $sm)) {
         require __DIR__ . '/files.php';
         $token     = $sm[1];
         $subAction = $sm[2] ?? null;
@@ -188,7 +188,12 @@ try {
             handleDownloadSharedFile($token);
             exit;
         }
+        if ($subAction === 'report' && $method === 'POST') {
+            handleReportSharedFile($token);
+            exit;
+        }
     }
+
 
     // ── 404 ──
     jsonError('Route not found: ' . $method . ' ' . $rawPath, 404);
