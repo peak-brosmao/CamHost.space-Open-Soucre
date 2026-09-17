@@ -166,20 +166,12 @@ try {
 
         if ($id === null && $method === 'GET')                        { handleListFiles();         exit; }
         if ($id !== null && $action === null && $method === 'GET')    { handleGetFile($id);        exit; }
+        if ($id !== null && $action === null && $method === 'PUT')    { handleUpdateFile($id);     exit; }
         if ($id !== null && $action === null && $method === 'DELETE') { handleDeleteFile($id);     exit; }
         if ($id !== null && $action === 'download')                   { handleDownloadFile($id);   exit; }
         if ($id !== null && $action === 'rename'  && $method === 'PUT') { handleRenameFile($id);   exit; }
         if ($id !== null && $action === 'share'   && $method === 'POST'){ handleShareFile($id);    exit; }
-        if ($id !== null && $action === 'move'    && $method === 'PUT') {
-            // Move file to a folder: body { folder_id: int|null }
-            $body     = json_decode(file_get_contents('php://input'), true);
-            $folderId = isset($body['folder_id']) ? (int)$body['folder_id'] : null;
-            $user     = requireAuth();
-            $stmt     = db()->prepare('UPDATE files SET folder_id = ? WHERE id = ? AND user_id = ?');
-            $stmt->execute([$folderId ?: null, $id, $user['id']]);
-            jsonSuccess(['message' => 'File moved successfully']);
-            exit;
-        }
+        if ($id !== null && $action === 'move'    && $method === 'PUT') { handleUpdateFile($id);    exit; }
     }
 
     // ── Public File Share routes — /share/{token}, /share/{token}/download ──

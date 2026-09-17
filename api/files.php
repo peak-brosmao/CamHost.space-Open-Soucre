@@ -161,6 +161,68 @@ function handleRenameFile(int $id): void {
 }
 
 /**
+ * PUT /api/files/{id} or PUT /api/files/{id}/move
+ * Update file properties (move to folder, rename)
+ * Body: { folder_id?: int|null|'root', name?: string, file_name?: string }
+ */
+function handleUpdateFile(int $id): void {
+    $user = requireAuth();
+    $file = fetchFile($id, $user['id']);
+
+    $rawInput = file_get_contents('php://input');
+    $body = json_decode($rawInput, true) ?? [];
+
+    $fields = [];
+    $params = [];
+
+    // Handle moving to folder
+    if (array_key_exists('folder_id', $body)) {
+        $rawFid = $body['folder_id'];
+        $folderId = null;
+        if ($rawFid !== null && $rawFid !== '' && $rawFid !== 'root' && (int)$rawFid > 0) {
+            $folderId = (int)$rawFid;
+            // Verify folder exists and belongs to user
+            $fStmt = db()->prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?');
+            $fStmt->execute([$folderId, $user['id']]);
+            if (!$fStmt->fetch()) {
+                jsonError('Target folder not found', 404);
+            }
+        }
+        $fields[] = 'folder_id = ?';
+        $params[] = $folderId;
+    }
+
+    // Handle rename / file name update
+    if (isset($body['name']) || isset($body['file_name']) || isset($body['original_name'])) {
+        $rawName = trim($body['name'] ?? $body['file_name'] ?? $body['original_name'] ?? '');
+        if ($rawName) {
+            $cleanName = basename(str_replace(['/', '\\'], '', $rawName));
+            if ($cleanName) {
+                $fields[] = 'original_name = ?';
+                $params[] = $cleanName;
+            }
+        }
+    }
+
+    if (empty($fields)) {
+        jsonError('No valid fields provided to update', 400);
+    }
+
+    $params[] = $id;
+    $params[] = $user['id'];
+    $sql = 'UPDATE files SET ' . implode(', ', $fields) . ' WHERE id = ? AND user_id = ?';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+
+    jsonSuccess([
+        'message' => 'File updated successfully',
+        'file_id' => $id,
+        'folder_id' => $folderId ?? $file['folder_id'] ?? null,
+    ]);
+}
+
+
+/**
  * POST /api/files/{id}/share
  * Toggle or generate public sharing token.
  * Body: { is_public?: boolean|int, download_limit?: int|null }

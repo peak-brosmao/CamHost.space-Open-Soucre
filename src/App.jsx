@@ -14,6 +14,11 @@ import SettingsPage from './pages/SettingsPage';
 import SignupsPage from './pages/SignupsPage';
 import SharePage from './pages/SharePage';
 import VerifyAccountPage from './pages/VerifyAccountPage';
+import BlogPage from './pages/BlogPage';
+import FeaturesPage from './pages/FeaturesPage';
+import ExplorerPage from './pages/ExplorerPage';
+import HowItWorksPage from './pages/HowItWorksPage';
+import OpenSourcePage from './pages/OpenSourcePage';
 
 // Admin shell & pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -70,6 +75,14 @@ export default function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/features" element={<FeaturesPage />} />
+              <Route path="/preview" element={<ExplorerPage />} />
+              <Route path="/explorer" element={<ExplorerPage />} />
+              <Route path="/how-it-works" element={<HowItWorksPage />} />
+              <Route path="/opensource" element={<OpenSourcePage />} />
+              <Route path="/open-source" element={<OpenSourcePage />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/:slug" element={<BlogPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/verify-account" element={<VerifyAccountPage />} />

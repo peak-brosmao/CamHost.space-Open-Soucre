@@ -32,10 +32,11 @@ export default function Header() {
       </Link>
 
       <nav className="site-header-nav">
-        <Link to="/#features" className="crumb-item">Features</Link>
-        <Link to="/#preview" className="crumb-item">Explorer</Link>
-        <Link to="/#how-it-works" className="crumb-item">How It Works</Link>
-        <Link to="/#opensource" className="crumb-item">Open Source</Link>
+        <Link to="/features" className="crumb-item">Features</Link>
+        <Link to="/preview" className="crumb-item">Explorer</Link>
+        <Link to="/how-it-works" className="crumb-item">How It Works</Link>
+        <Link to="/opensource" className="crumb-item">Open Source</Link>
+        <Link to="/blog" className="crumb-item">Blog</Link>
       </nav>
 
       <div className="site-header-actions">
