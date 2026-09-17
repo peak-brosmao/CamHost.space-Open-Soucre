@@ -129,26 +129,29 @@ export default function UploadPage() {
           const timeDelta = (now - speedTracker.lastTime) / 1000;
           const bytesDelta = actualLoaded - speedTracker.lastLoaded;
 
-          let speed = 0;
-          let eta = 0;
-
-          if (timeDelta > 0.15 && bytesDelta > 0) {
-            const sample = bytesDelta / timeDelta;
-            speedTracker.samples.push(sample);
-            if (speedTracker.samples.length > 5) speedTracker.samples.shift();
-            speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
-            speedTracker.lastTime = now;
-            speedTracker.lastLoaded = actualLoaded;
-          } else if (speedTracker.samples.length > 0) {
-            speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
-          }
-
-          if (speed > 0) {
-            eta = Math.max(0, Math.round((actualTotal - actualLoaded) / speed));
-          }
-
           setFileQueue((prev) =>
-            prev.map((it) => (it.id === item.id ? { ...it, progress: percent, speed, eta } : it))
+            prev.map((it) => {
+              if (it.id !== item.id) return it;
+              let speed = it.speed || 0;
+              let eta = it.eta || 0;
+
+              if (timeDelta > 0.1 && bytesDelta > 0) {
+                const sample = bytesDelta / timeDelta;
+                speedTracker.samples.push(sample);
+                if (speedTracker.samples.length > 5) speedTracker.samples.shift();
+                speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
+                speedTracker.lastTime = now;
+                speedTracker.lastLoaded = actualLoaded;
+              } else if (speedTracker.samples.length > 0) {
+                speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
+              }
+
+              if (speed > 0) {
+                eta = Math.max(0, Math.round((actualTotal - actualLoaded) / speed));
+              }
+
+              return { ...it, progress: percent, speed, eta };
+            })
           );
         }, (chunkCurrent, chunkTotal) => {
           // Server is uploading chunks to Telegram

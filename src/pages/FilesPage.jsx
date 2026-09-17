@@ -617,38 +617,39 @@ export default function FilesPage({ filter: propFilter }) {
           const tracker = speedTrackRef.current;
           const actualLoaded = loaded || Math.round((percent / 100) * file.size);
           const actualTotal = total || file.size;
-          const timeDelta = (now - tracker.lastTime) / 1000; // seconds
+          const timeDelta = (now - tracker.lastTime) / 1000;
           const bytesDelta = actualLoaded - tracker.lastLoaded;
 
-          let speed = 0;
-          let eta = 0;
+          setUploadTask((prev) => {
+            let speed = prev.speed || 0;
+            let eta = prev.eta || 0;
 
-          if (timeDelta > 0.15 && bytesDelta > 0) {
-            const sample = bytesDelta / timeDelta;
-            tracker.samples.push(sample);
-            // Keep rolling window of last 5 samples for smooth averaging
-            if (tracker.samples.length > 5) tracker.samples.shift();
-            speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
-            tracker.lastTime = now;
-            tracker.lastLoaded = actualLoaded;
-          } else if (tracker.samples.length > 0) {
-            speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
-          }
+            if (timeDelta > 0.1 && bytesDelta > 0) {
+              const sample = bytesDelta / timeDelta;
+              tracker.samples.push(sample);
+              if (tracker.samples.length > 5) tracker.samples.shift();
+              speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
+              tracker.lastTime = now;
+              tracker.lastLoaded = actualLoaded;
+            } else if (tracker.samples.length > 0) {
+              speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
+            }
 
-          if (speed > 0) {
-            const remaining = actualTotal - actualLoaded;
-            eta = Math.max(0, Math.round(remaining / speed));
-          }
+            if (speed > 0) {
+              const remaining = actualTotal - actualLoaded;
+              eta = Math.max(0, Math.round(remaining / speed));
+            }
 
-          setUploadTask((prev) => ({
-            ...prev,
-            percent,
-            loadedBytes: actualLoaded,
-            totalBytes: actualTotal,
-            speed,
-            eta,
-            status: percent >= 100 ? 'saving' : 'uploading',
-          }));
+            return {
+              ...prev,
+              percent,
+              loadedBytes: actualLoaded,
+              totalBytes: actualTotal,
+              speed,
+              eta,
+              status: percent >= 100 ? 'saving' : 'uploading',
+            };
+          });
         }, (chunkCurrent, chunkTotal) => {
           // onChunkProgress — server is uploading chunks to Telegram
           setUploadTask((prev) => ({
