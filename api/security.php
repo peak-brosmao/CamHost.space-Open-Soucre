@@ -98,8 +98,8 @@ function runWafInspection(): void {
  * Lightweight token bucket rate limiter backed by SQLite.
  * Protects against DDoS and brute-force credential stuffing.
  */
-function enforceRateLimit(string $action, int $maxHits, int $windowSeconds): void {
-    $ip = getClientIp();
+function enforceRateLimit(string $action, int $maxHits, int $windowSeconds, ?string $customIp = null): void {
+    $ip = $customIp ?: getClientIp();
     $now = time();
 
     try {
@@ -120,8 +120,10 @@ function enforceRateLimit(string $action, int $maxHits, int $windowSeconds): voi
             // First hit in window
             $insert = $pdo->prepare('INSERT INTO rate_limits (ip_address, action, hits, window_start) VALUES (?, ?, 1, ?)');
             $insert->execute([$ip, $action, $now]);
-            header('X-RateLimit-Limit: ' . $maxHits);
-            header('X-RateLimit-Remaining: ' . ($maxHits - 1));
+            if (!headers_sent()) {
+                header('X-RateLimit-Limit: ' . $maxHits);
+                header('X-RateLimit-Remaining: ' . ($maxHits - 1));
+            }
             return;
         }
 
@@ -132,8 +134,10 @@ function enforceRateLimit(string $action, int $maxHits, int $windowSeconds): voi
             // Window expired, reset window
             $reset = $pdo->prepare('UPDATE rate_limits SET hits = 1, window_start = ? WHERE id = ?');
             $reset->execute([$now, $record['id']]);
-            header('X-RateLimit-Limit: ' . $maxHits);
-            header('X-RateLimit-Remaining: ' . ($maxHits - 1));
+            if (!headers_sent()) {
+                header('X-RateLimit-Limit: ' . $maxHits);
+                header('X-RateLimit-Remaining: ' . ($maxHits - 1));
+            }
             return;
         }
 
@@ -143,12 +147,16 @@ function enforceRateLimit(string $action, int $maxHits, int $windowSeconds): voi
         $update->execute([$hits, $record['id']]);
 
         $remaining = max(0, $maxHits - $hits);
-        header('X-RateLimit-Limit: ' . $maxHits);
-        header('X-RateLimit-Remaining: ' . $remaining);
+        if (!headers_sent()) {
+            header('X-RateLimit-Limit: ' . $maxHits);
+            header('X-RateLimit-Remaining: ' . $remaining);
+        }
 
         if ($hits > $maxHits) {
             $retryAfter = ($windowStart + $windowSeconds) - $now;
-            header('Retry-After: ' . max(1, $retryAfter));
+            if (!headers_sent()) {
+                header('Retry-After: ' . max(1, $retryAfter));
+            }
             blockRequest(429, 'Rate limit exceeded. Please wait ' . max(1, $retryAfter) . ' seconds before trying again.');
         }
     } catch (Exception $e) {
@@ -175,8 +183,10 @@ function generateSecureToken(int $bytes = 32): string {
  * Helper to terminate request immediately with standard JSON security error.
  */
 function blockRequest(int $statusCode, string $message): void {
-    http_response_code($statusCode);
-    header('Content-Type: application/json; charset=UTF-8');
+    if (!headers_sent()) {
+        http_response_code($statusCode);
+        header('Content-Type: application/json; charset=UTF-8');
+    }
     echo json_encode([
         'success' => false,
         'error'   => $message,

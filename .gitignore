@@ -6,3 +6,5 @@ node_modules/
 !.env.example
 api/.env
 !api/.env.example
+data/
+*.db
