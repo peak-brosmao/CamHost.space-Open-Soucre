@@ -91,7 +91,7 @@ updateCountdown();
 
 // ── Google Sheets Integration ──
 // 👇 Paste your Apps Script Web App URL here after deploying
-const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2fR43IfPXi3N-w-ek-tXXTiuA5xGRYQfTYZEWVSU4c0GL6KjFC-q82vSu3jMRA1oWhg/exec';
 
 // ── Signup Form ──
 async function handleSignup(e) {
