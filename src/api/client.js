@@ -91,7 +91,8 @@ export function uploadWithProgress(path, formData, onProgress) {
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
+        const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+        onProgress(percent, e.loaded, e.total);
       }
     };
 
@@ -99,6 +100,7 @@ export function uploadWithProgress(path, formData, onProgress) {
       try {
         const json = JSON.parse(xhr.responseText || '{}');
         if (xhr.status < 300 && json.success !== false) {
+          if (onProgress) onProgress(100, 0, 0);
           resolve(json);
         } else {
           reject(new Error(json.error || 'Upload failed'));

@@ -92,10 +92,11 @@ function handleUpload(): void {
 
     $folderId = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
 
-    // ── Save metadata to SQLite ─────────────────────────────────
+    // ── Generate Instant Share Token & Save metadata to SQLite ──
+    $shareToken = bin2hex(random_bytes(16));
     $stmt = db()->prepare('
-        INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description, is_public, share_token)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     ');
     $stmt->execute([
         $user['id'],
@@ -106,9 +107,11 @@ function handleUpload(): void {
         $fileId,
         $messageId,
         $description ?: null,
+        $shareToken,
     ]);
 
     $newId = db()->lastInsertId();
+    $shareUrl = FRONTEND_URL . '/share/' . $shareToken;
 
     jsonSuccess([
         'file' => [
@@ -124,12 +127,16 @@ function handleUpload(): void {
             'size_bytes'    => $sizeBytes,
             'size_human'    => formatBytes($sizeBytes),
             'downloads'     => 0,
-            'is_public'     => 0,
+            'is_public'     => 1,
+            'share_token'   => $shareToken,
+            'share_url'     => $shareUrl,
             'description'   => $description ?: null,
             'created_at'    => date('c'),
         ],
-        'message' => 'File uploaded successfully',
-        'mode'    => TELEGRAM_LOCAL_MODE ? 'local-api (2 GB)' : 'cloud-api (50 MB)',
+        'share_url'   => $shareUrl,
+        'share_token' => $shareToken,
+        'message'     => 'File uploaded successfully',
+        'mode'        => TELEGRAM_LOCAL_MODE ? 'local-api (2 GB)' : 'cloud-api (50 MB)',
     ], 201);
 }
 
@@ -205,4 +212,9 @@ if (!function_exists('formatBytes')) {
         if ($bytes >= 1024)       return round($bytes / 1024,       2) . ' KB';
         return $bytes . ' B';
     }
+}
+
+// If invoked directly as a standalone script
+if (str_contains($_SERVER['SCRIPT_FILENAME'] ?? '', 'upload.php') && !defined('ROUTED_FROM_INDEX')) {
+    handleUpload();
 }

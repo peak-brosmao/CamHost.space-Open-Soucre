@@ -20,6 +20,9 @@ import ExplorerPage from './pages/ExplorerPage';
 import HowItWorksPage from './pages/HowItWorksPage';
 import OpenSourcePage from './pages/OpenSourcePage';
 
+import DeviceCentrePage from './pages/DeviceCentrePage';
+import ObjectStoragePage from './pages/ObjectStoragePage';
+
 // Admin shell & pages
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -93,6 +96,18 @@ export default function App() {
               <Route path="/folders" element={<ProtectedRoute><FoldersPage /></ProtectedRoute>} />
               <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+
+              {/* Enhanced Storage Views */}
+              <Route path="/shared" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+              <Route path="/shared-items" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+              <Route path="/device-centre" element={<ProtectedRoute><DeviceCentrePage /></ProtectedRoute>} />
+              <Route path="/devices" element={<ProtectedRoute><DeviceCentrePage /></ProtectedRoute>} />
+              <Route path="/object-storage" element={<ProtectedRoute><ObjectStoragePage /></ProtectedRoute>} />
+              <Route path="/recents" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+              <Route path="/favourites" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+              <Route path="/favorites" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+              <Route path="/rubbish-bin" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
+              <Route path="/trash" element={<ProtectedRoute><FilesPage /></ProtectedRoute>} />
 
               {/* Admin: Signups standalone page */}
               <Route path="/signups" element={<AdminRoute><SignupsPage /></AdminRoute>} />

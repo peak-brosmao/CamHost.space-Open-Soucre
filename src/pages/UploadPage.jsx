@@ -80,6 +80,18 @@ export default function UploadPage() {
     setFileQueue((prev) => prev.filter((item) => item.id !== id));
   };
 
+  // Warn and prevent closing/reloading browser if upload is active
+  useEffect(() => {
+    if (!uploading) return;
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = 'Upload in progress! Closing or reloading will cancel your upload.';
+      return e.returnValue;
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [uploading]);
+
   const startUpload = async () => {
     if (fileQueue.length === 0) return;
     setUploading(true);

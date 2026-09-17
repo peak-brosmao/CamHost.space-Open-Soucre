@@ -72,6 +72,8 @@ $rawPath = preg_replace('#^/api#', '', $rawPath);
 $rawPath = rtrim($rawPath, '/') ?: '/';
 $method  = strtoupper($_SERVER['REQUEST_METHOD']);
 
+define('ROUTED_FROM_INDEX', true);
+
 // ── Maintenance Mode Check ───────────────────────────────────────
 $isMaintenance = false;
 try {
@@ -140,8 +142,8 @@ try {
         exit;
     }
 
-    // ── Upload routes — /upload or /files (POST) ──
-    if (($rawPath === '/upload' || $rawPath === '/files') && $method === 'POST') {
+    // ── Upload routes — /upload, /upload.php or /files (POST) ──
+    if (($rawPath === '/upload' || $rawPath === '/upload.php' || $rawPath === '/files') && $method === 'POST') {
         require __DIR__ . '/upload.php';
         handleUpload();
         exit;

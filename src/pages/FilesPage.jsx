@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import Modal from '../components/Modal';
@@ -16,7 +16,7 @@ import {
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
-export default function FilesPage() {
+export default function FilesPage({ filter: propFilter }) {
   const { refreshUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [files, setFiles] = useState([]);
@@ -27,7 +27,81 @@ export default function FilesPage() {
   // URL query params & router
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const folderParam = searchParams.get('folder_id') || 'all';
+  const filterQuery = searchParams.get('filter') || propFilter || '';
+
+  // Determine active view filter
+  let activeFilter = 'all';
+  if (location.pathname === '/shared' || location.pathname === '/shared-items' || filterQuery === 'shared') {
+    activeFilter = 'shared';
+  } else if (location.pathname === '/recents' || filterQuery === 'recent' || filterQuery === 'recents') {
+    activeFilter = 'recent';
+  } else if (location.pathname === '/favourites' || location.pathname === '/favorites' || filterQuery === 'favorites' || filterQuery === 'favourites') {
+    activeFilter = 'favorites';
+  } else if (location.pathname === '/rubbish-bin' || location.pathname === '/trash' || filterQuery === 'trash') {
+    activeFilter = 'trash';
+  }
+
+  // Favorites & Trash state (stored in localStorage for persistence)
+  const [favoriteIds, setFavoriteIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('camhost_favorites') || '[]');
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const [trashIds, setTrashIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('camhost_trash') || '[]');
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const toggleFavorite = (fileId) => {
+    setFavoriteIds((prev) => {
+      const isFav = prev.includes(fileId);
+      const next = isFav ? prev.filter((id) => id !== fileId) : [...prev, fileId];
+      try {
+        localStorage.setItem('camhost_favorites', JSON.stringify(next));
+      } catch (e) {}
+      showToast(isFav ? 'Removed from Favourites' : 'Added to Favourites', 'info');
+      return next;
+    });
+  };
+
+  const moveToTrash = (fileId) => {
+    setTrashIds((prev) => {
+      const next = prev.includes(fileId) ? prev : [...prev, fileId];
+      try {
+        localStorage.setItem('camhost_trash', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    showToast('File moved to Rubbish bin', 'info');
+  };
+
+  const restoreFromTrash = (fileId) => {
+    setTrashIds((prev) => {
+      const next = prev.filter((id) => id !== fileId);
+      try {
+        localStorage.setItem('camhost_trash', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    showToast('File restored to storage', 'success');
+  };
+
+  const emptyTrash = () => {
+    if (!window.confirm('Are you sure you want to permanently empty the Rubbish bin?')) return;
+    setTrashIds([]);
+    try {
+      localStorage.removeItem('camhost_trash');
+    } catch (e) {}
+    showToast('Rubbish bin emptied', 'success');
+  };
 
   // Filters & display
   const [selectedFolderId, setSelectedFolderId] = useState(folderParam);
@@ -79,20 +153,42 @@ export default function FilesPage() {
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, file: null, loading: false });
   const [infoModal, setInfoModal] = useState({ isOpen: false, file: null });
   const [createFolderModal, setCreateFolderModal] = useState({ isOpen: false, name: '', loading: false });
+  const [renameFolderModal, setRenameFolderModal] = useState({ isOpen: false, folder: null, newName: '', loading: false });
+  const [deleteFolderModal, setDeleteFolderModal] = useState({ isOpen: false, folder: null, loading: false });
+
+  // Drag & drop state
+  const [isDraggingPage, setIsDraggingPage] = useState(false);
+  const [dragTargetFolderId, setDragTargetFolderId] = useState(null);
+
+  // Upload Progress and Task state
+  const [uploadTask, setUploadTask] = useState({
+    active: false,
+    fileName: '',
+    totalFiles: 0,
+    currentFileIndex: 0,
+    percent: 0,
+    loadedBytes: 0,
+    totalBytes: 0,
+    status: 'idle', // 'idle' | 'uploading' | 'saving' | 'done' | 'error'
+    error: null,
+    folderName: null,
+  });
 
   // Right-click context menu state
   const [contextMenu, setContextMenu] = useState({
     isOpen: false,
     x: 0,
     y: 0,
-    type: null, // 'file' | 'area'
+    type: null, // 'file' | 'area' | 'folder'
     file: null,
+    folder: null,
   });
   const [selectedFileId, setSelectedFileId] = useState(null);
 
   const { showToast } = useToast();
   const pollTimerRef = useRef(null);
   const hiddenFileInputRef = useRef(null);
+  const targetFolderForUploadRef = useRef(null);
 
   // Fetch folders
   const loadFolders = useCallback(async () => {
@@ -173,11 +269,32 @@ export default function FilesPage() {
   // Filter & Sort
   const filteredFiles = files
     .filter((f) => {
+      // Trash filtering
+      const inTrash = trashIds.includes(f.id) || Boolean(f.is_trash);
+      if (activeFilter === 'trash') {
+        if (!inTrash) return false;
+      } else {
+        if (inTrash) return false;
+      }
+
+      // Specific view modes
+      if (activeFilter === 'shared') {
+        if (!f.is_public && !f.share_token) return false;
+      } else if (activeFilter === 'favorites') {
+        if (!favoriteIds.includes(f.id)) return false;
+      }
+
       if (!searchQuery) return true;
       const name = f.file_name || f.original_name || f.name || '';
       return name.toLowerCase().includes(searchQuery.toLowerCase());
     })
     .sort((a, b) => {
+      if (activeFilter === 'recent') {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA;
+      }
+
       const nameA = a.file_name || a.original_name || '';
       const nameB = b.file_name || b.original_name || '';
       const sizeA = a.file_size ?? a.size_bytes ?? 0;
@@ -417,30 +534,164 @@ export default function FilesPage() {
     }
   };
 
-  // Direct file upload from context menu
-  const handleDirectFileUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      showToast(`Uploading ${file.name}...`, 'info');
+  // Prevent closing or refreshing browser when upload is active
+  useEffect(() => {
+    if (!uploadTask.active || uploadTask.status === 'done' || uploadTask.status === 'error') return;
+
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = 'Upload in progress! Closing or reloading will cancel your upload.';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [uploadTask.active, uploadTask.status]);
+
+  // Upload files with real-time progress and instant share link generation
+  const uploadFilesToFolder = async (filesList, targetFolderId = null, targetFolderName = null) => {
+    const files = Array.from(filesList || []);
+    if (files.length === 0) return;
+
+    const effectiveFolderId = targetFolderId !== undefined && targetFolderId !== null
+      ? (targetFolderId === 'all' || targetFolderId === 'root' ? null : targetFolderId)
+      : (selectedFolderId && selectedFolderId !== 'all' && selectedFolderId !== 'root' ? selectedFolderId : null);
+
+    const folderObj = folders.find((f) => String(f.id) === String(effectiveFolderId));
+    const folderLabel = targetFolderName || (folderObj ? folderObj.folder_name : (effectiveFolderId ? `Folder #${effectiveFolderId}` : 'My Files'));
+
+    setUploadTask({
+      active: true,
+      fileName: files[0].name,
+      totalFiles: files.length,
+      currentFileIndex: 1,
+      percent: 0,
+      loadedBytes: 0,
+      totalBytes: files[0].size,
+      status: 'uploading',
+      error: null,
+      folderName: folderLabel,
+      shareUrl: '',
+    });
+
+    let successCount = 0;
+    let lastShareUrl = '';
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadTask((prev) => ({
+        ...prev,
+        active: true,
+        fileName: file.name,
+        currentFileIndex: i + 1,
+        totalFiles: files.length,
+        percent: 0,
+        loadedBytes: 0,
+        totalBytes: file.size,
+        status: 'uploading',
+        error: null,
+        folderName: folderLabel,
+      }));
+
       const formData = new FormData();
       formData.append('file', file);
-      if (selectedFolderId && selectedFolderId !== 'all' && selectedFolderId !== 'root') {
-        formData.append('folder_id', selectedFolderId);
+      if (effectiveFolderId) {
+        formData.append('folder_id', String(effectiveFolderId));
       }
-      await uploadWithProgress('/upload.php', formData, () => {});
-      showToast(`${file.name} uploaded successfully!`, 'success');
+
+      try {
+        const res = await uploadWithProgress('/upload', formData, (percent, loaded, total) => {
+          setUploadTask((prev) => ({
+            ...prev,
+            percent,
+            loadedBytes: loaded || Math.round((percent / 100) * file.size),
+            totalBytes: total || file.size,
+            status: percent >= 100 ? 'saving' : 'uploading',
+          }));
+        });
+
+        const shareUrl = res?.share_url || res?.file?.share_url || (res?.share_token ? `${window.location.origin}/share/${res.share_token}` : '');
+        if (shareUrl) lastShareUrl = shareUrl;
+
+        successCount++;
+      } catch (err) {
+        setUploadTask((prev) => ({
+          ...prev,
+          status: 'error',
+          error: err.message || 'Upload failed',
+        }));
+        showToast(`Failed to upload ${file.name}: ${err.message || 'Error'}`, 'error');
+      }
+    }
+
+    if (successCount > 0) {
+      setUploadTask((prev) => ({
+        ...prev,
+        percent: 100,
+        status: 'done',
+        shareUrl: lastShareUrl,
+      }));
+
+      showToast(successCount === 1 ? `Uploaded "${files[0].name}" successfully!` : `${successCount} files uploaded successfully!`, 'success');
       loadFiles(true);
       loadFolders();
       refreshUser();
-    } catch (err) {
-      showToast(err.message || 'Upload failed', 'error');
-    } finally {
-      e.target.value = '';
     }
   };
 
-  // Right-click handlers
+  // Direct file upload from input trigger
+  const handleDirectFileUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const targetFid = targetFolderForUploadRef.current !== null ? targetFolderForUploadRef.current : selectedFolderId;
+    targetFolderForUploadRef.current = null;
+    await uploadFilesToFolder(files, targetFid);
+    e.target.value = '';
+  };
+
+  // Page drag & drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      setIsDraggingPage(true);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsDraggingPage(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPage(false);
+    setDragTargetFolderId(null);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await uploadFilesToFolder(e.dataTransfer.files, selectedFolderId);
+    }
+  };
+
+  // Drop directly onto a specific folder card/chip
+  const handleFolderDrop = async (e, folderId, folderName) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPage(false);
+    setDragTargetFolderId(null);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await uploadFilesToFolder(e.dataTransfer.files, folderId, folderName);
+    }
+  };
+
+  // Right-click on file
   const handleFileContextMenu = (e, file) => {
     e.preventDefault();
     e.stopPropagation();
@@ -454,14 +705,12 @@ export default function FilesPage() {
     let x = clientX;
     let y = clientY;
 
-    // Center horizontally if right-clicked too far right or left
     if (clientX > window.innerWidth - 280 || clientX < 220) {
       x = Math.max(16, Math.round((window.innerWidth - menuWidth) / 2));
     } else {
       x = Math.max(16, Math.min(clientX, window.innerWidth - menuWidth - 20));
     }
 
-    // Vertical boundary check
     if (y + menuHeight > window.innerHeight - 20) {
       y = Math.max(16, window.innerHeight - menuHeight - 20);
     }
@@ -472,17 +721,16 @@ export default function FilesPage() {
       y,
       type: 'file',
       file,
+      folder: null,
     });
   };
 
-  const handleAreaContextMenu = (e) => {
-    // If target was inside an interactive button, skip
-    if (e.target.closest('.action-btn') || e.target.closest('button') || e.target.closest('input')) {
-      return;
-    }
+  // Right-click on folder card / chip
+  const handleFolderContextMenu = (e, folder) => {
     e.preventDefault();
+    e.stopPropagation();
 
-    const menuWidth = 210;
+    const menuWidth = 220;
     const menuHeight = 220;
     const clientX = e.clientX;
     const clientY = e.clientY;
@@ -490,14 +738,47 @@ export default function FilesPage() {
     let x = clientX;
     let y = clientY;
 
-    // Center horizontally if right-clicked too far right or left
     if (clientX > window.innerWidth - 260 || clientX < 200) {
       x = Math.max(16, Math.round((window.innerWidth - menuWidth) / 2));
     } else {
       x = Math.max(16, Math.min(clientX, window.innerWidth - menuWidth - 20));
     }
 
-    // Vertical boundary check
+    if (y + menuHeight > window.innerHeight - 20) {
+      y = Math.max(16, window.innerHeight - menuHeight - 20);
+    }
+
+    setContextMenu({
+      isOpen: true,
+      x,
+      y,
+      type: 'folder',
+      folder,
+      file: null,
+    });
+  };
+
+  // Right-click on empty area
+  const handleAreaContextMenu = (e) => {
+    if (e.target.closest('.action-btn') || e.target.closest('button') || e.target.closest('input')) {
+      return;
+    }
+    e.preventDefault();
+
+    const menuWidth = 220;
+    const menuHeight = 220;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    let x = clientX;
+    let y = clientY;
+
+    if (clientX > window.innerWidth - 260 || clientX < 200) {
+      x = Math.max(16, Math.round((window.innerWidth - menuWidth) / 2));
+    } else {
+      x = Math.max(16, Math.min(clientX, window.innerWidth - menuWidth - 20));
+    }
+
     if (y + menuHeight > window.innerHeight - 20) {
       y = Math.max(16, window.innerHeight - menuHeight - 20);
     }
@@ -508,46 +789,131 @@ export default function FilesPage() {
       y,
       type: 'area',
       file: null,
+      folder: null,
     });
+  };
+
+  // Folder rename and delete handlers
+  const handleRenameFolderSubmit = async () => {
+    if (!renameFolderModal.folder) return;
+    const trimmed = renameFolderModal.newName.trim();
+    if (!trimmed) {
+      showToast('Folder name cannot be empty', 'error');
+      return;
+    }
+    setRenameFolderModal((prev) => ({ ...prev, loading: true }));
+    try {
+      await apiRequest(`/folders/${renameFolderModal.folder.id}`, {
+        method: 'PUT',
+        body: { name: trimmed, folder_name: trimmed },
+      });
+      showToast('Folder renamed successfully', 'success');
+      setRenameFolderModal({ isOpen: false, folder: null, newName: '', loading: false });
+      loadFolders();
+      loadFiles(true);
+    } catch (err) {
+      showToast(err.message || 'Failed to rename folder', 'error');
+      setRenameFolderModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleDeleteFolderSubmit = async () => {
+    if (!deleteFolderModal.folder) return;
+    setDeleteFolderModal((prev) => ({ ...prev, loading: true }));
+    try {
+      await apiRequest(`/folders/${deleteFolderModal.folder.id}`, {
+        method: 'DELETE',
+      });
+      showToast(`Folder "${deleteFolderModal.folder.folder_name}" deleted`, 'success');
+      setDeleteFolderModal({ isOpen: false, folder: null, loading: false });
+      if (String(selectedFolderId) === String(deleteFolderModal.folder.id)) {
+        handleSelectFolder('all');
+      }
+      loadFolders();
+      loadFiles(true);
+    } catch (err) {
+      showToast(err.message || 'Failed to delete folder', 'error');
+      setDeleteFolderModal((prev) => ({ ...prev, loading: false }));
+    }
   };
 
 
   // Active folder object
   const currentFolder = folders.find((f) => String(f.id) === String(selectedFolderId));
 
-  // Dynamic breadcrumbs
+  // Dynamic breadcrumbs & Titles
+  const getFilterLabel = () => {
+    switch (activeFilter) {
+      case 'shared': return 'Shared items';
+      case 'recent': return 'Recents';
+      case 'favorites': return 'Favourites';
+      case 'trash': return 'Rubbish bin';
+      default: return null;
+    }
+  };
+
+  const filterLabel = getFilterLabel();
+
   const breadcrumbs = [
     { label: 'Storage', to: '/files' },
-    {
-      label: 'My Files',
-      to: selectedFolderId === 'all' ? null : '/files',
-      onClick: selectedFolderId === 'all' ? null : () => handleSelectFolder('all'),
-      active: selectedFolderId === 'all',
-    },
-    ...(selectedFolderId !== 'all'
+    ...(filterLabel
       ? [
           {
-            label:
-              selectedFolderId === 'root'
-                ? 'Root'
-                : currentFolder
-                ? currentFolder.folder_name
-                : `Folder #${selectedFolderId}`,
+            label: filterLabel,
             active: true,
           },
         ]
-      : []),
+      : [
+          {
+            label: 'My Files',
+            to: selectedFolderId === 'all' ? null : '/files',
+            onClick: selectedFolderId === 'all' ? null : () => handleSelectFolder('all'),
+            active: selectedFolderId === 'all',
+          },
+          ...(selectedFolderId !== 'all'
+            ? [
+                {
+                  label:
+                    selectedFolderId === 'root'
+                      ? 'Root'
+                      : currentFolder
+                      ? currentFolder.folder_name
+                      : `Folder #${selectedFolderId}`,
+                  active: true,
+                },
+              ]
+            : []),
+        ]),
   ];
+
+  const getPageTitle = () => {
+    if (activeFilter === 'shared') return 'Shared items';
+    if (activeFilter === 'recent') return 'Recents';
+    if (activeFilter === 'favorites') return 'Favourites';
+    if (activeFilter === 'trash') return 'Rubbish bin';
+    if (selectedFolderId === 'all') return 'Files';
+    if (selectedFolderId === 'root') return 'Root Files';
+    return currentFolder?.folder_name || 'Folder Files';
+  };
+
+  const getPageSubtitle = () => {
+    if (activeFilter === 'shared') return 'Files shared publicly with active share tokens and direct download links';
+    if (activeFilter === 'recent') return 'Recently uploaded and accessed files in your cloud storage';
+    if (activeFilter === 'favorites') return 'Your starred and favourite files for quick one-click access';
+    if (activeFilter === 'trash') return 'Deleted files in your rubbish bin. You can restore or permanently delete them.';
+    return `${filteredFiles.length} ${filteredFiles.length === 1 ? 'file' : 'files'} in your cloud storage`;
+  };
 
   return (
     <div className="dashboard-layout">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Hidden input for direct file upload from context menu */}
+      {/* Hidden input for direct file upload (supports multiple files) */}
       <input
         type="file"
         ref={hiddenFileInputRef}
         onChange={handleDirectFileUpload}
+        multiple
         style={{ display: 'none' }}
       />
 
@@ -592,23 +958,85 @@ export default function FilesPage() {
           }
         />
 
-        <main className="dashboard-container" onContextMenu={handleAreaContextMenu}>
+        <main
+          className="dashboard-container"
+          onContextMenu={handleAreaContextMenu}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          style={{ position: 'relative', minHeight: '80vh' }}
+        >
+          {/* Drag & Drop Visual Overlay */}
+          {isDraggingPage && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'rgba(5, 8, 22, 0.92)',
+                border: '2px dashed var(--cyan)',
+                borderRadius: 'var(--radius)',
+                zIndex: 100,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '14px',
+                pointerEvents: 'none',
+                backdropFilter: 'blur(6px)',
+              }}
+            >
+              <div
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: 'rgba(0, 212, 255, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--cyan)',
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
+                Drop files here to upload
+              </div>
+              <div style={{ fontSize: '0.88rem', color: 'var(--cyan)', fontWeight: 500 }}>
+                Destination: <strong>{currentFolder ? currentFolder.folder_name : 'My Files (Root)'}</strong>
+              </div>
+            </div>
+          )}
+
           {/* Header & stats */}
           <div className="page-header-row">
             <div>
-              <h1 className="page-title">
-                {selectedFolderId === 'all'
-                  ? 'Files'
-                  : selectedFolderId === 'root'
-                  ? 'Root Files'
-                  : currentFolder?.folder_name || 'Folder Files'}
-              </h1>
+              <h1 className="page-title">{getPageTitle()}</h1>
               <p className="page-desc">
-                {filteredFiles.length} {filteredFiles.length === 1 ? 'file' : 'files'} in your cloud storage
+                {getPageSubtitle()}
                 {refreshing && <span className="sync-badge">Syncing...</span>}
               </p>
             </div>
             <div className="controls-row">
+              {activeFilter === 'trash' && filteredFiles.length > 0 && (
+                <button
+                  className="btn btn-secondary danger btn-sm"
+                  onClick={emptyTrash}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Empty Rubbish Bin
+                </button>
+              )}
+
               <div className="search-box">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
                   <circle cx="11" cy="11" r="8" />
@@ -672,36 +1100,43 @@ export default function FilesPage() {
             </div>
           </div>
 
-          {/* Folder Chips Filter */}
-          <div className="folder-chips">
-            <button
-              className={`chip ${selectedFolderId === 'all' ? 'active' : ''}`}
-              onClick={() => handleSelectFolder('all')}
-            >
-              All Files
-            </button>
-            <button
-              className={`chip ${selectedFolderId === 'root' ? 'active' : ''}`}
-              onClick={() => handleSelectFolder('root')}
-            >
-              Root
-            </button>
-            {folders.map((f) => (
+          {/* Folder Chips Filter (only when viewing All Files) */}
+          {activeFilter === 'all' && (
+            <div className="folder-chips">
               <button
-                key={f.id}
-                className={`chip ${String(selectedFolderId) === String(f.id) ? 'active' : ''}`}
-                onClick={() => handleSelectFolder(String(f.id))}
+                className={`chip ${selectedFolderId === 'all' ? 'active' : ''}`}
+                onClick={() => handleSelectFolder('all')}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                {f.folder_name}
+                All Files
               </button>
-            ))}
-          </div>
+              <button
+                className={`chip ${selectedFolderId === 'root' ? 'active' : ''}`}
+                onClick={() => handleSelectFolder('root')}
+              >
+                Root
+              </button>
+              {folders.map((f) => (
+                <button
+                  key={f.id}
+                  className={`chip ${String(selectedFolderId) === String(f.id) ? 'active' : ''}`}
+                  onClick={() => handleSelectFolder(String(f.id))}
+                  onContextMenu={(e) => handleFolderContextMenu(e, f)}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragTargetFolderId(f.id); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragTargetFolderId(null); }}
+                  onDrop={(e) => handleFolderDrop(e, f.id, f.folder_name)}
+                  style={dragTargetFolderId === f.id ? { borderColor: 'var(--cyan)', boxShadow: '0 0 12px rgba(0, 212, 255, 0.4)' } : {}}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  {f.folder_name}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* If viewing a specific folder, show Folder Banner */}
-          {selectedFolderId !== 'all' && selectedFolderId !== 'root' && (
+          {activeFilter === 'all' && selectedFolderId !== 'all' && selectedFolderId !== 'root' && (
             <div
               style={{
                 display: 'flex',
@@ -740,7 +1175,7 @@ export default function FilesPage() {
           )}
 
           {/* If viewing All Files, show quick Folder Cards above files */}
-          {selectedFolderId === 'all' && folders.length > 0 && !searchQuery && (
+          {activeFilter === 'all' && selectedFolderId === 'all' && folders.length > 0 && !searchQuery && (
             <div style={{ marginBottom: '22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -755,9 +1190,13 @@ export default function FilesPage() {
                   <div
                     key={f.id}
                     onClick={() => handleSelectFolder(String(f.id))}
+                    onContextMenu={(e) => handleFolderContextMenu(e, f)}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragTargetFolderId(f.id); }}
+                    onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragTargetFolderId(null); }}
+                    onDrop={(e) => handleFolderDrop(e, f.id, f.folder_name)}
                     style={{
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
+                      background: dragTargetFolderId === f.id ? 'rgba(0, 212, 255, 0.14)' : 'var(--surface)',
+                      border: dragTargetFolderId === f.id ? '2px dashed var(--cyan)' : '1px solid var(--border)',
                       borderRadius: 'var(--radius-sm)',
                       padding: '10px 14px',
                       display: 'flex',
@@ -765,23 +1204,28 @@ export default function FilesPage() {
                       gap: '10px',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
+                      boxShadow: dragTargetFolderId === f.id ? '0 0 14px rgba(0, 212, 255, 0.35)' : 'none',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--cyan)';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      if (dragTargetFolderId !== f.id) {
+                        e.currentTarget.style.borderColor = 'var(--cyan)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                      e.currentTarget.style.transform = 'translateY(0)';
+                      if (dragTargetFolderId !== f.id) {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
                     }}
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" style={{ color: 'var(--cyan)' }}>
                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                     </svg>
-                    <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {f.folder_name}
                     </span>
-                    <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                       {f.file_count || 0}
                     </span>
                   </div>
@@ -871,64 +1315,119 @@ export default function FilesPage() {
                     </div>
 
                     <div className="file-card-actions">
-                      <button
-                        className="action-btn"
-                        onClick={() => handleDownload(f)}
-                        title="Download file"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                          <polyline points="7 10 12 15 17 10" />
-                          <line x1="12" y1="15" x2="12" y2="3" />
-                        </svg>
-                      </button>
-                      <button
-                        className="action-btn"
-                        onClick={() => openShare(f)}
-                        title="Share link"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <circle cx="18" cy="5" r="3" />
-                          <circle cx="6" cy="12" r="3" />
-                          <circle cx="18" cy="19" r="3" />
-                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                        </svg>
-                      </button>
-                      <button
-                        className="action-btn"
-                        onClick={() => openRename(f)}
-                        title="Rename file"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        className="action-btn"
-                        onClick={() => openMove(f)}
-                        title="Move to folder"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <polyline points="5 9 2 12 5 15" />
-                          <polyline points="9 5 12 2 15 5" />
-                          <polyline points="15 19 12 22 9 19" />
-                          <polyline points="19 9 22 12 19 15" />
-                          <line x1="2" y1="12" x2="22" y2="12" />
-                          <line x1="12" y1="2" x2="12" y2="22" />
-                        </svg>
-                      </button>
-                      <button
-                        className="action-btn danger"
-                        onClick={() => openDelete(f)}
-                        title="Delete file"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
-                      </button>
+                      {activeFilter === 'trash' ? (
+                        <>
+                          <button
+                            className="action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              restoreFromTrash(f.id);
+                            }}
+                            title="Restore file to storage"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <polyline points="1 4 1 10 7 10" />
+                              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                            </svg>
+                          </button>
+                          <button
+                            className="action-btn danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDelete(f);
+                            }}
+                            title="Permanently delete file"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFavorite(f.id);
+                            }}
+                            title={favoriteIds.includes(f.id) ? 'Remove from Favourites' : 'Add to Favourites'}
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill={favoriteIds.includes(f.id) ? '#f59e0b' : 'none'}
+                              stroke={favoriteIds.includes(f.id) ? '#f59e0b' : 'currentColor'}
+                              strokeWidth="2"
+                              width="13"
+                              height="13"
+                            >
+                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            </svg>
+                          </button>
+                          <button
+                            className="action-btn"
+                            onClick={() => handleDownload(f)}
+                            title="Download file"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                          </button>
+                          <button
+                            className="action-btn"
+                            onClick={() => openShare(f)}
+                            title="Share link"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <circle cx="18" cy="5" r="3" />
+                              <circle cx="6" cy="12" r="3" />
+                              <circle cx="18" cy="19" r="3" />
+                              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                            </svg>
+                          </button>
+                          <button
+                            className="action-btn"
+                            onClick={() => openRename(f)}
+                            title="Rename file"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            className="action-btn"
+                            onClick={() => openMove(f)}
+                            title="Move to folder"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <polyline points="5 9 2 12 5 15" />
+                              <polyline points="9 5 12 2 15 5" />
+                              <polyline points="15 19 12 22 9 19" />
+                              <polyline points="19 9 22 12 19 15" />
+                              <line x1="2" y1="12" x2="22" y2="12" />
+                              <line x1="12" y1="2" x2="12" y2="22" />
+                            </svg>
+                          </button>
+                          <button
+                            className="action-btn danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveToTrash(f.id);
+                            }}
+                            title="Move to Rubbish bin"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );
@@ -997,64 +1496,119 @@ export default function FilesPage() {
                         </td>
                         <td>
                           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-                            <button
-                              className="action-btn"
-                              onClick={() => handleDownload(f)}
-                              title="Download file"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                              </svg>
-                            </button>
-                            <button
-                              className="action-btn"
-                              onClick={() => openShare(f)}
-                              title="Share link"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                                <circle cx="18" cy="5" r="3" />
-                                <circle cx="6" cy="12" r="3" />
-                                <circle cx="18" cy="19" r="3" />
-                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                              </svg>
-                            </button>
-                            <button
-                              className="action-btn"
-                              onClick={() => openRename(f)}
-                              title="Rename file"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                                <path d="M12 20h9" />
-                                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                              </svg>
-                            </button>
-                            <button
-                              className="action-btn"
-                              onClick={() => openMove(f)}
-                              title="Move to folder"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                                <polyline points="5 9 2 12 5 15" />
-                                <polyline points="9 5 12 2 15 5" />
-                                <polyline points="15 19 12 22 9 19" />
-                                <polyline points="19 9 22 12 19 15" />
-                                <line x1="2" y1="12" x2="22" y2="12" />
-                                <line x1="12" y1="2" x2="12" y2="22" />
-                              </svg>
-                            </button>
-                            <button
-                              className="action-btn danger"
-                              onClick={() => openDelete(f)}
-                              title="Delete file"
-                            >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              </svg>
-                            </button>
+                            {activeFilter === 'trash' ? (
+                              <>
+                                <button
+                                  className="action-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    restoreFromTrash(f.id);
+                                  }}
+                                  title="Restore file to storage"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                                    <polyline points="1 4 1 10 7 10" />
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="action-btn danger"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDelete(f);
+                                  }}
+                                  title="Permanently delete file"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  className="action-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite(f.id);
+                                  }}
+                                  title={favoriteIds.includes(f.id) ? 'Remove from Favourites' : 'Add to Favourites'}
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill={favoriteIds.includes(f.id) ? '#f59e0b' : 'none'}
+                                    stroke={favoriteIds.includes(f.id) ? '#f59e0b' : 'currentColor'}
+                                    strokeWidth="2"
+                                    width="13"
+                                    height="13"
+                                  >
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="action-btn"
+                                  onClick={() => handleDownload(f)}
+                                  title="Download file"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="action-btn"
+                                  onClick={() => openShare(f)}
+                                  title="Share link"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                                    <circle cx="18" cy="5" r="3" />
+                                    <circle cx="6" cy="12" r="3" />
+                                    <circle cx="18" cy="19" r="3" />
+                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="action-btn"
+                                  onClick={() => openRename(f)}
+                                  title="Rename file"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="action-btn"
+                                  onClick={() => openMove(f)}
+                                  title="Move to folder"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                                    <polyline points="5 9 2 12 5 15" />
+                                    <polyline points="9 5 12 2 15 5" />
+                                    <polyline points="15 19 12 22 9 19" />
+                                    <polyline points="19 9 22 12 19 15" />
+                                    <line x1="2" y1="12" x2="22" y2="12" />
+                                    <line x1="12" y1="2" x2="12" y2="22" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="action-btn danger"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    moveToTrash(f.id);
+                                  }}
+                                  title="Move to Rubbish bin"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1166,20 +1720,63 @@ export default function FilesPage() {
                 </svg>
                 Move
               </button>
-              <div className="context-menu-divider" />
               <button
-                className="context-menu-item danger"
+                className="context-menu-item"
                 onClick={() => {
-                  openDelete(contextMenu.file);
-                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null });
+                  toggleFavorite(contextMenu.file.id);
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
                 }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <svg viewBox="0 0 24 24" fill={favoriteIds.includes(contextMenu.file.id) ? '#f59e0b' : 'none'} stroke={favoriteIds.includes(contextMenu.file.id) ? '#f59e0b' : 'currentColor'} strokeWidth="2" width="15" height="15">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
-                Move to Rubbish bin
+                {favoriteIds.includes(contextMenu.file.id) ? 'Remove from Favourites' : 'Add to Favourites'}
               </button>
+              <div className="context-menu-divider" />
+              {activeFilter === 'trash' ? (
+                <>
+                  <button
+                    className="context-menu-item"
+                    onClick={() => {
+                      restoreFromTrash(contextMenu.file.id);
+                      setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                      <polyline points="1 4 1 10 7 10" />
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    </svg>
+                    Restore from Rubbish bin
+                  </button>
+                  <button
+                    className="context-menu-item danger"
+                    onClick={() => {
+                      openDelete(contextMenu.file);
+                      setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Delete permanently
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="context-menu-item danger"
+                  onClick={() => {
+                    moveToTrash(contextMenu.file.id);
+                    setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Move to Rubbish bin
+                </button>
+              )}
             </>
           )}
 
@@ -1188,8 +1785,9 @@ export default function FilesPage() {
               <button
                 className="context-menu-item"
                 onClick={() => {
+                  targetFolderForUploadRef.current = (selectedFolderId && selectedFolderId !== 'all' && selectedFolderId !== 'root') ? selectedFolderId : null;
                   hiddenFileInputRef.current?.click();
-                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null });
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
                 }}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
@@ -1197,13 +1795,13 @@ export default function FilesPage() {
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                Upload file
+                Upload files {currentFolder ? `to "${currentFolder.folder_name}"` : 'here'}
               </button>
               <button
                 className="context-menu-item"
                 onClick={() => {
                   navigate(`/upload${selectedFolderId && selectedFolderId !== 'all' && selectedFolderId !== 'root' ? `?folder_id=${selectedFolderId}` : ''}`);
-                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null });
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
                 }}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
@@ -1211,14 +1809,14 @@ export default function FilesPage() {
                   <polyline points="12 11 12 17" />
                   <polyline points="9 14 12 11 15 14" />
                 </svg>
-                Upload folder
+                Upload page
               </button>
               <div className="context-menu-divider" />
               <button
                 className="context-menu-item"
                 onClick={() => {
                   setCreateFolderModal({ isOpen: true, name: '', loading: false });
-                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null });
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
                 }}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
@@ -1233,7 +1831,7 @@ export default function FilesPage() {
                 onClick={() => {
                   loadFiles(false);
                   loadFolders();
-                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null });
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
                   showToast('Files refreshed', 'info');
                 }}
               >
@@ -1243,6 +1841,74 @@ export default function FilesPage() {
                   <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                 </svg>
                 Refresh
+              </button>
+            </>
+          )}
+
+          {contextMenu.type === 'folder' && contextMenu.folder && (
+            <>
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  handleSelectFolder(String(contextMenu.folder.id));
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                Open Folder
+              </button>
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  targetFolderForUploadRef.current = contextMenu.folder.id;
+                  hiddenFileInputRef.current?.click();
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Upload files to "{contextMenu.folder.folder_name}"
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setRenameFolderModal({
+                    isOpen: true,
+                    folder: contextMenu.folder,
+                    newName: contextMenu.folder.folder_name,
+                    loading: false,
+                  });
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Rename folder
+              </button>
+              <button
+                className="context-menu-item danger"
+                onClick={() => {
+                  setDeleteFolderModal({
+                    isOpen: true,
+                    folder: contextMenu.folder,
+                    loading: false,
+                  });
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, file: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Delete folder
               </button>
             </>
           )}
@@ -1571,6 +2237,264 @@ export default function FilesPage() {
           This action cannot be undone. The file will be removed from your cloud storage.
         </p>
       </Modal>
+
+      {/* Rename Folder Modal */}
+      <Modal
+        isOpen={renameFolderModal.isOpen}
+        onClose={() => setRenameFolderModal({ isOpen: false, folder: null, newName: '', loading: false })}
+        title="Rename Folder"
+        confirmText="Save Name"
+        onConfirm={handleRenameFolderSubmit}
+        loading={renameFolderModal.loading}
+      >
+        <div className="form-group">
+          <label htmlFor="rename-folder-input">New Folder Name</label>
+          <input
+            id="rename-folder-input"
+            type="text"
+            className="input-field"
+            value={renameFolderModal.newName}
+            onChange={(e) => setRenameFolderModal((prev) => ({ ...prev, newName: e.target.value }))}
+            autoFocus
+          />
+        </div>
+      </Modal>
+
+      {/* Delete Folder Modal */}
+      <Modal
+        isOpen={deleteFolderModal.isOpen}
+        onClose={() => setDeleteFolderModal({ isOpen: false, folder: null, loading: false })}
+        title="Delete Folder"
+        confirmText="Delete Folder"
+        confirmVariant="danger"
+        onConfirm={handleDeleteFolderSubmit}
+        loading={deleteFolderModal.loading}
+      >
+        <p style={{ color: 'var(--text)', fontSize: '0.94rem' }}>
+          Are you sure you want to delete the folder <strong>"{deleteFolderModal.folder?.folder_name}"</strong>?
+        </p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.84rem', marginTop: '6px' }}>
+          Files inside this folder will not be deleted; their folder assignment will simply be removed.
+        </p>
+      </Modal>
+
+      {/* Floating Upload Progress & Instant Link Card */}
+      {uploadTask.active && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            width: '400px',
+            maxWidth: 'calc(100vw - 32px)',
+            background: 'var(--surface, #161b26)',
+            border: uploadTask.status === 'done' ? '1px solid rgba(0, 224, 139, 0.4)' : '1px solid rgba(0, 212, 255, 0.3)',
+            borderRadius: '12px',
+            padding: '16px 18px',
+            boxShadow: '0 16px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(0, 212, 255, 0.1)',
+            backdropFilter: 'blur(12px)',
+            animation: 'fadeIn 0.25s ease',
+          }}
+        >
+          {/* Header Row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {uploadTask.status === 'uploading' && (
+                <span className="spinner-sm" style={{ borderColor: 'rgba(0, 212, 255, 0.3)', borderTopColor: '#00d4ff' }} />
+              )}
+              {uploadTask.status === 'saving' && (
+                <span className="spinner-sm" style={{ borderColor: 'rgba(245, 158, 11, 0.3)', borderTopColor: '#f59e0b' }} />
+              )}
+              {uploadTask.status === 'done' && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="#00e08b" strokeWidth="2.5" width="18" height="18">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+              {uploadTask.status === 'error' && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="#ff4757" strokeWidth="2.5" width="18" height="18">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              )}
+              <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
+                {uploadTask.status === 'uploading' && `Uploading (${uploadTask.currentFileIndex}/${uploadTask.totalFiles})`}
+                {uploadTask.status === 'saving' && 'Processing file...'}
+                {uploadTask.status === 'done' && 'Upload Complete! (100%)'}
+                {uploadTask.status === 'error' && 'Upload Failed'}
+              </span>
+            </div>
+            <button
+              className="icon-btn"
+              style={{ width: '26px', height: '26px', minWidth: '26px', padding: 0 }}
+              onClick={() => {
+                if (uploadTask.status === 'uploading' || uploadTask.status === 'saving') {
+                  if (!window.confirm('Upload is still in progress. Dismiss this notification?')) return;
+                }
+                setUploadTask((prev) => ({ ...prev, active: false }));
+              }}
+              title="Close notification"
+            >
+              &times;
+            </button>
+          </div>
+
+          {/* File Name & Destination Folder */}
+          <div style={{ marginBottom: '10px' }}>
+            <div
+              style={{
+                fontSize: '0.84rem',
+                fontWeight: 500,
+                color: 'var(--text)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={uploadTask.fileName}
+            >
+              {uploadTask.fileName}
+            </div>
+            {uploadTask.folderName && (
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                Target: <span style={{ color: 'var(--cyan)' }}>{uploadTask.folderName}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Warning Banner during active upload */}
+          {(uploadTask.status === 'uploading' || uploadTask.status === 'saving') && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: '6px',
+                padding: '6px 10px',
+                marginBottom: '10px',
+                fontSize: '0.74rem',
+                color: '#f59e0b',
+              }}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ flexShrink: 0 }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>Do not close or reload browser while uploading</span>
+            </div>
+          )}
+
+          {/* Progress Bar */}
+          <div
+            style={{
+              width: '100%',
+              height: '8px',
+              borderRadius: '4px',
+              background: 'var(--surface-hover, #212836)',
+              overflow: 'hidden',
+              marginBottom: '6px',
+            }}
+          >
+            <div
+              style={{
+                width: `${uploadTask.percent}%`,
+                height: '100%',
+                background:
+                  uploadTask.status === 'error'
+                    ? '#ff4757'
+                    : uploadTask.status === 'done'
+                    ? 'linear-gradient(90deg, #00e08b, #00d4ff)'
+                    : 'linear-gradient(90deg, #00d4ff, #7928ca)',
+                borderRadius: '4px',
+                transition: 'width 0.2s ease',
+              }}
+            />
+          </div>
+
+          {/* Progress Text & Bytes */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+            <span>{uploadTask.percent}%</span>
+            <span>
+              {formatBytes(uploadTask.loadedBytes)} / {formatBytes(uploadTask.totalBytes)}
+            </span>
+          </div>
+
+          {/* Instant Share Link (shown immediately on 100% completion) */}
+          {uploadTask.status === 'done' && uploadTask.shareUrl && (
+            <div
+              style={{
+                marginTop: '12px',
+                padding: '10px 12px',
+                background: 'rgba(0, 212, 255, 0.08)',
+                border: '1px solid rgba(0, 212, 255, 0.25)',
+                borderRadius: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#00d4ff', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="13" height="13">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                  Direct Share Link (Instant)
+                </span>
+                <span style={{ fontSize: '0.7rem', color: '#00e08b' }}>Ready to share</span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={uploadTask.shareUrl}
+                  className="input-field"
+                  style={{
+                    flex: 1,
+                    fontSize: '0.78rem',
+                    padding: '6px 8px',
+                    fontFamily: 'monospace',
+                    height: '32px',
+                  }}
+                  onClick={(e) => e.target.select()}
+                />
+                <button
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.78rem', padding: '0 12px', height: '32px', whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(uploadTask.shareUrl);
+                    showToast('Direct share link copied to clipboard!', 'success');
+                  }}
+                >
+                  Copy Link
+                </button>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', height: '26px' }}
+                  onClick={() => window.open(uploadTask.shareUrl, '_blank')}
+                >
+                  Open Link
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: '0.74rem', padding: '4px 10px', height: '26px' }}
+                  onClick={() => setUploadTask((prev) => ({ ...prev, active: false }))}
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {uploadTask.status === 'error' && (
+            <div style={{ marginTop: '10px', color: '#ff4757', fontSize: '0.76rem' }}>
+              Error: {uploadTask.error || 'Failed to upload'}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
