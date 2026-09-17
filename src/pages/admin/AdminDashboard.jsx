@@ -102,7 +102,7 @@ export default function AdminDashboard() {
           label="Total Registered Users"
           value={ov.total_users ?? '—'}
           sub={`${ov.verified_users ?? 0} Verified · ${ov.banned_users ?? 0} Suspended`}
-          color="#00d4ff"
+          color="#4f46e5"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -114,7 +114,7 @@ export default function AdminDashboard() {
           label="Total Hosted Files"
           value={ov.total_files ?? '—'}
           sub={`${ov.blocked_files ?? 0} Flagged / Blocked`}
-          color="#7b4fff"
+          color="#7c3aed"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -126,7 +126,7 @@ export default function AdminDashboard() {
           label="Storage Consumed"
           value={formatBytes(ov.total_storage_bytes)}
           sub="Telegram Cloud Storage"
-          color="#00e08b"
+          color="#059669"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
               <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
           label="Total Downloads & Streams"
           value={ov.total_downloads ?? '—'}
           sub={`Rate limit hits: ${ov.rate_limit_hits ?? 0}`}
-          color="#ffab2e"
+          color="#d97706"
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>

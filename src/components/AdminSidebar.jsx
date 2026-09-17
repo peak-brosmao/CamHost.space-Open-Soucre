@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 const IconSun = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
     <circle cx="12" cy="12" r="5"/>
     <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
     <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
@@ -13,7 +13,7 @@ const IconSun = () => (
   </svg>
 );
 const IconMoon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
   </svg>
 );
@@ -76,210 +76,158 @@ const IconStar = () => (
   </svg>
 );
 const IconChevron = ({ open }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"
-    style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0 }}>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"
+    style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease', flexShrink: 0, marginLeft: 'auto' }}>
     <polyline points="9 18 15 12 9 6"/>
   </svg>
 );
 const IconLogout = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
     <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
 );
 const IconHome = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
     <polyline points="9 22 9 12 15 12 15 22"/>
   </svg>
 );
 
-const NAV_GROUPS = [
-  {
-    id: 'dashboard',
-    label: null,
-    items: [
-      { to: '/admin/dashboard', label: 'Dashboard Overview', icon: <IconDashboard /> },
-    ],
-  },
+const NAV_STRUCTURE = [
+  { to: '/admin/dashboard', label: 'Dashboard Overview', icon: <IconDashboard /> },
   {
     id: 'platform_core',
     label: 'Platform Core',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/settings/general', label: 'General Settings', sub: true },
-      { to: '/admin/settings/advanced', label: 'Advanced Settings', sub: true },
-      { to: '/admin/settings/appearance', label: 'Appearance', sub: true },
-      { to: '/admin/settings/maintenance', label: 'Maintenance Mode', sub: true },
-      { to: '/admin/settings/license', label: 'License', sub: true },
-    ],
     icon: <IconSettings />,
+    items: [
+      { to: '/admin/settings/general', label: 'General Settings' },
+      { to: '/admin/settings/advanced', label: 'Advanced Settings' },
+      { to: '/admin/settings/appearance', label: 'Appearance' },
+      { to: '/admin/settings/maintenance', label: 'Maintenance Mode' },
+      { to: '/admin/settings/license', label: 'License' },
+    ],
   },
   {
     id: 'users_security',
     label: 'Users & Security',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/settings/user-guest', label: 'User & Guest Settings', sub: true },
-      { to: '/admin/settings/admins', label: 'Admins & Passkey', sub: true },
-      { to: '/admin/settings/captcha', label: 'Captcha Settings', sub: true },
-    ],
     icon: <IconShield />,
+    items: [
+      { to: '/admin/settings/user-guest', label: 'User & Guest Settings' },
+      { to: '/admin/settings/admins', label: 'Admins & Passkey' },
+      { to: '/admin/settings/captcha', label: 'Captcha Settings' },
+    ],
   },
   {
     id: 'content_comms',
     label: 'Content & Comms',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/settings/smtp', label: 'SMTP Settings', sub: true },
-      { to: '/admin/settings/email-templates', label: 'Email Templates', sub: true },
-      { to: '/admin/settings/blog', label: 'Blog Settings', sub: true },
-      { to: '/admin/settings/seo', label: 'SEO & Verification', sub: true },
-      { to: '/admin/settings/languages', label: 'Languages', sub: true },
-    ],
     icon: <IconFiles />,
+    items: [
+      { to: '/admin/settings/smtp', label: 'SMTP Settings' },
+      { to: '/admin/settings/email-templates', label: 'Email Templates' },
+      { to: '/admin/settings/blog', label: 'Blog Settings' },
+      { to: '/admin/settings/seo', label: 'SEO & Verification' },
+      { to: '/admin/settings/languages', label: 'Languages' },
+    ],
   },
   {
     id: 'system_ops',
     label: 'System & Operations',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/settings/ads', label: 'Ads & Social Button', sub: true },
-      { to: '/admin/settings/api', label: 'API & Telegram', sub: true },
-      { to: '/admin/settings/cron', label: 'Cron Job', sub: true },
-      { to: '/admin/settings/cache', label: 'Cache Control', sub: true },
-      { to: '/admin/settings/system-info', label: 'System Info', sub: true },
-    ],
     icon: <IconHealth />,
+    items: [
+      { to: '/admin/settings/ads', label: 'Ads & Social Button' },
+      { to: '/admin/settings/api', label: 'API & Telegram' },
+      { to: '/admin/settings/cron', label: 'Cron Job' },
+      { to: '/admin/settings/cache', label: 'Cache Control' },
+      { to: '/admin/settings/system-info', label: 'System Info' },
+    ],
   },
   { divider: true },
   {
     id: 'user_mgmt',
     label: 'User Management',
-    defaultOpen: true,
-    items: [
-      { to: '/admin/users', label: 'All Users', icon: <IconUsers /> },
-      { to: '/admin/users/activity', label: 'User Activity', sub: true },
-    ],
     icon: <IconUsers />,
+    items: [
+      { to: '/admin/users', label: 'All Users' },
+      { to: '/admin/users/activity', label: 'User Activity' },
+    ],
   },
   {
     id: 'file_mgmt',
     label: 'File Management',
-    defaultOpen: true,
-    items: [
-      { to: '/admin/files', label: 'All Files', icon: <IconFiles /> },
-      { to: '/admin/files/reported', label: 'Reported Files', sub: true },
-      { to: '/admin/files/expired', label: 'Expired Files', sub: true },
-      { to: '/admin/files/blocked', label: 'Blocked Files', sub: true },
-    ],
     icon: <IconFiles />,
-  },
-  {
-    id: 'storage_mgmt',
-    label: 'Storage Management',
-    defaultOpen: false,
     items: [
-      { to: '/admin/storage', label: 'Storage Overview', icon: <IconStorage /> },
+      { to: '/admin/files', label: 'All Files' },
+      { to: '/admin/files/reported', label: 'Reported Files' },
+      { to: '/admin/files/expired', label: 'Expired Files' },
+      { to: '/admin/files/blocked', label: 'Blocked Files' },
     ],
-    icon: <IconStorage />,
   },
-  {
-    id: 'upload_mgmt',
-    label: 'Upload Management',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/uploads', label: 'Upload Overview', icon: <IconUpload /> },
-    ],
-    icon: <IconUpload />,
-  },
-  {
-    id: 'download_mgmt',
-    label: 'Download Management',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/downloads', label: 'Download Overview', icon: <IconDownload /> },
-    ],
-    icon: <IconDownload />,
-  },
+  { to: '/admin/storage', label: 'Storage Management', icon: <IconStorage /> },
+  { to: '/admin/uploads', label: 'Upload Management', icon: <IconUpload /> },
+  { to: '/admin/downloads', label: 'Download Management', icon: <IconDownload /> },
   { divider: true },
-  {
-    id: 'security_abuse',
-    label: 'Security & Abuse',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/security', label: 'Audit & Abuse Logs', icon: <IconShield /> },
-    ],
-    icon: <IconShield />,
-  },
-  {
-    id: 'sys_health',
-    label: 'System Health',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/health', label: 'Health Monitor', icon: <IconHealth /> },
-    ],
-    icon: <IconHealth />,
-  },
-  {
-    id: 'subscriptions',
-    label: 'Subscriptions',
-    defaultOpen: false,
-    items: [
-      { to: '/admin/subscriptions', label: 'Plans & Payments', icon: <IconStar /> },
-    ],
-    icon: <IconStar />,
-    badge: 'Optional',
-  },
+  { to: '/admin/security', label: 'Security & Abuse Logs', icon: <IconShield /> },
+  { to: '/admin/health', label: 'System Health', icon: <IconHealth /> },
+  { to: '/admin/subscriptions', label: 'Subscriptions', icon: <IconStar />, badge: 'Optional' },
 ];
 
-function NavGroup({ group, onClose }) {
-  const [open, setOpen] = useState(group.defaultOpen ?? true);
-
-  if (group.divider) {
+function NavEntry({ item, onClose, location }) {
+  if (item.divider) {
     return <div className="admin-nav-divider" />;
   }
 
-  if (!group.label) {
+  // Direct single-link items
+  if (item.to && !item.items) {
     return (
-      <div className="admin-nav-plain">
-        {group.items.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
-            onClick={onClose}
-          >
-            {item.icon && <span className="admin-nav-icon">{item.icon}</span>}
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </div>
+      <NavLink
+        to={item.to}
+        end={item.to === '/admin/dashboard'}
+        className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
+        onClick={onClose}
+      >
+        {item.icon && <span className="admin-nav-icon">{item.icon}</span>}
+        <span className="admin-nav-text-label">{item.label}</span>
+        {item.badge && <span className="admin-nav-badge">{item.badge}</span>}
+      </NavLink>
     );
   }
 
+  // Accordion section
+  const isChildActive = item.items?.some(
+    sub => location.pathname === sub.to || (sub.to !== '/admin' && location.pathname.startsWith(sub.to + '/'))
+  );
+  const [open, setOpen] = useState(isChildActive);
+
+  useEffect(() => {
+    if (isChildActive) {
+      setOpen(true);
+    }
+  }, [isChildActive]);
+
   return (
     <div className="admin-nav-group">
-      <button className="admin-nav-group-header" onClick={() => setOpen(!open)}>
-        <span className="admin-nav-icon">{group.icon}</span>
-        <span className="admin-nav-group-label">{group.label}</span>
-        {group.badge && (
-          <span className="admin-nav-badge">{group.badge}</span>
-        )}
+      <button
+        type="button"
+        className={`admin-nav-group-header ${isChildActive ? 'child-active' : ''}`}
+        onClick={() => setOpen(!open)}
+      >
+        <span className="admin-nav-icon">{item.icon}</span>
+        <span className="admin-nav-group-label">{item.label}</span>
+        {item.badge && <span className="admin-nav-badge">{item.badge}</span>}
         <IconChevron open={open} />
       </button>
       {open && (
         <div className="admin-nav-group-items">
-          {group.items.map((item) => (
+          {item.items.map((sub) => (
             <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to.split('/').length <= 3}
-              className={({ isActive }) => `admin-nav-item ${item.sub ? 'sub' : ''} ${isActive ? 'active' : ''}`}
+              key={sub.to}
+              to={sub.to}
+              end={sub.to.split('/').length <= 3}
+              className={({ isActive }) => `admin-nav-item sub ${isActive ? 'active' : ''}`}
               onClick={onClose}
             >
-              {!item.sub && item.icon && <span className="admin-nav-icon">{item.icon}</span>}
-              <span>{item.label}</span>
+              <span className="admin-nav-text-label">{sub.label}</span>
             </NavLink>
           ))}
         </div>
@@ -292,6 +240,7 @@ export default function AdminSidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -304,11 +253,11 @@ export default function AdminSidebar({ isOpen, onClose }) {
     <>
       <div className={`admin-sidebar-overlay ${isOpen ? 'open' : ''}`} onClick={onClose} />
       <aside className={`admin-sidebar ${isOpen ? 'open' : ''}`} id="admin-sidebar">
-        {/* Logo */}
+        {/* Header */}
         <div className="admin-sidebar-header">
           <Link to="/admin/dashboard" className="admin-sidebar-logo" onClick={onClose}>
             <div className="admin-sidebar-logo-icon">
-              <svg viewBox="0 0 40 40" fill="none" width="20" height="20">
+              <svg viewBox="0 0 40 40" fill="none" width="18" height="18">
                 <path d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z" fill="url(#asl)"/>
                 <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95"/>
                 <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8"/>
@@ -334,8 +283,13 @@ export default function AdminSidebar({ isOpen, onClose }) {
 
         {/* Navigation */}
         <nav className="admin-sidebar-nav">
-          {NAV_GROUPS.map((group, i) => (
-            <NavGroup key={group.id || `divider-${i}`} group={group} onClose={onClose} />
+          {NAV_STRUCTURE.map((item, i) => (
+            <NavEntry
+              key={item.id || item.to || `nav-sep-${i}`}
+              item={item}
+              onClose={onClose}
+              location={location}
+            />
           ))}
         </nav>
 
@@ -352,6 +306,7 @@ export default function AdminSidebar({ isOpen, onClose }) {
           </div>
           <div className="admin-sidebar-footer-actions">
             <button
+              type="button"
               className="admin-sidebar-mode-btn"
               onClick={toggleTheme}
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -359,7 +314,12 @@ export default function AdminSidebar({ isOpen, onClose }) {
               {theme === 'dark' ? <IconSun /> : <IconMoon />}
               <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
-            <button className="admin-logout-btn" onClick={handleLogout} title="Sign Out">
+            <button
+              type="button"
+              className="admin-logout-btn"
+              onClick={handleLogout}
+              title="Sign Out"
+            >
               <IconLogout />
               <span>Sign Out</span>
             </button>
