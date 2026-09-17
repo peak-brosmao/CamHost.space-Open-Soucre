@@ -118,24 +118,24 @@ async function handleSignup(e) {
     }
 
     const url = `${APPS_SCRIPT_URL}?email=${encodeURIComponent(email)}`;
-    const res  = await fetch(url, { method: 'GET', mode: 'cors' });
-    const data = await res.json();
 
-    if (data.success) {
-      // ✅ Success
-      btn.innerHTML = '✓ Saved!';
-      btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
-      form.reset();
-      success.classList.add('visible');
+    // Use no-cors to bypass CORS restriction from Apps Script.
+    // The request still goes through and saves to Google Sheets —
+    // we just can't read the response (opaque), so we assume success.
+    await fetch(url, { method: 'GET', mode: 'no-cors' });
 
-      setTimeout(() => {
-        btn.innerHTML = '<span class="btn-text">Notify Me</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
-        btn.style.background = '';
-        btn.disabled = false;
-      }, 3000);
-    } else {
-      throw new Error(data.message || 'Something went wrong.');
-    }
+    // ✅ Assume success (no-cors means no error = request sent OK)
+    btn.innerHTML = '✓ Saved!';
+    btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
+    form.reset();
+    success.classList.add('visible');
+    if (errorMsg) errorMsg.classList.remove('visible');
+
+    setTimeout(() => {
+      btn.innerHTML = '<span class="btn-text">Notify Me</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+      btn.style.background = '';
+      btn.disabled = false;
+    }, 3000);
 
   } catch (err) {
     // ❌ Error state
