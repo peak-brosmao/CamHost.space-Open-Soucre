@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
-import { apiRequest } from '../api/client';
+import { apiRequest, formatDateTime } from '../api/client';
 
 export default function FoldersPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -33,6 +33,16 @@ export default function FoldersPage() {
   const [renameModal, setRenameModal] = useState({ isOpen: false, folder: null, newName: '', loading: false });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, folder: null, loading: false });
 
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    type: null, // 'folder' | 'area'
+    folder: null,
+  });
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
+
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -53,6 +63,26 @@ export default function FoldersPage() {
   useEffect(() => {
     loadFolders();
   }, [loadFolders]);
+
+  // Context menu dismiss listeners
+  useEffect(() => {
+    const handleDismiss = () => {
+      setContextMenu((prev) => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') handleDismiss();
+    };
+
+    window.addEventListener('click', handleDismiss);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleDismiss, true);
+
+    return () => {
+      window.removeEventListener('click', handleDismiss);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleDismiss, true);
+    };
+  }, []);
 
   // Create folder
   const handleCreateSubmit = async () => {
@@ -78,7 +108,7 @@ export default function FoldersPage() {
 
   // Rename folder
   const openRename = (e, folder) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     const currentName = folder.folder_name || folder.name || '';
     setRenameModal({ isOpen: true, folder, newName: currentName, loading: false });
   };
@@ -106,7 +136,7 @@ export default function FoldersPage() {
 
   // Delete folder
   const openDelete = (e, folder) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     setDeleteModal({ isOpen: true, folder, loading: false });
   };
 
@@ -125,15 +155,48 @@ export default function FoldersPage() {
     }
   };
 
-  // Helper date formatting
-  const formatDate = (isoString) => {
-    if (!isoString) return '—';
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch (e) {
-      return isoString;
+  // Right-click handlers
+  const handleFolderContextMenu = (e, folder) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedFolderId(folder.id);
+
+    const menuWidth = 200;
+    const menuHeight = 180;
+    let x = e.clientX;
+    let y = e.clientY;
+    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+
+    setContextMenu({
+      isOpen: true,
+      x,
+      y,
+      type: 'folder',
+      folder,
+    });
+  };
+
+  const handleAreaContextMenu = (e) => {
+    if (e.target.closest('.action-btn') || e.target.closest('button') || e.target.closest('input')) {
+      return;
     }
+    e.preventDefault();
+
+    const menuWidth = 180;
+    const menuHeight = 140;
+    let x = e.clientX;
+    let y = e.clientY;
+    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+
+    setContextMenu({
+      isOpen: true,
+      x,
+      y,
+      type: 'area',
+      folder: null,
+    });
   };
 
   // Filtered folders
@@ -164,7 +227,7 @@ export default function FoldersPage() {
           }
         />
 
-        <main className="dashboard-container">
+        <main className="dashboard-container" onContextMenu={handleAreaContextMenu}>
           <div className="page-header-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <h1 className="page-title">Folders</h1>
@@ -274,8 +337,10 @@ export default function FoldersPage() {
                     return (
                       <tr
                         key={folder.id}
+                        className={selectedFolderId === folder.id ? 'selected-row' : ''}
                         style={{ cursor: 'pointer' }}
                         onClick={() => navigate(`/files?folder_id=${folder.id}`)}
+                        onContextMenu={(e) => handleFolderContextMenu(e, folder)}
                       >
                         <td>
                           <div className="folder-list-item-name">
@@ -298,7 +363,7 @@ export default function FoldersPage() {
                           {sizeHuman}
                         </td>
                         <td style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                          {formatDate(folder.created_at)}
+                          {formatDateTime(folder.created_at)}
                         </td>
                         <td>
                           <div className="folder-actions" style={{ justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
@@ -352,8 +417,9 @@ export default function FoldersPage() {
                 return (
                   <div
                     key={folder.id}
-                    className="folder-card"
+                    className={`folder-card ${selectedFolderId === folder.id ? 'selected-card' : ''}`}
                     onClick={() => navigate(`/files?folder_id=${folder.id}`)}
+                    onContextMenu={(e) => handleFolderContextMenu(e, folder)}
                   >
                     <div className="folder-card-top">
                       <div className="folder-icon">
@@ -400,6 +466,98 @@ export default function FoldersPage() {
           )}
         </main>
       </div>
+
+      {/* Right Click Context Menu */}
+      {contextMenu.isOpen && (
+        <div
+          className="custom-context-menu"
+          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.type === 'folder' && contextMenu.folder && (
+            <>
+              <div className="context-menu-header" title={contextMenu.folder.folder_name || contextMenu.folder.name}>
+                {contextMenu.folder.folder_name || contextMenu.folder.name}
+              </div>
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  navigate(`/files?folder_id=${contextMenu.folder.id}`);
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                Open folder
+              </button>
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  openRename(null, contextMenu.folder);
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                Rename
+              </button>
+              <div className="context-menu-divider" />
+              <button
+                className="context-menu-item danger"
+                onClick={() => {
+                  openDelete(null, contextMenu.folder);
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Delete folder
+              </button>
+            </>
+          )}
+
+          {contextMenu.type === 'area' && (
+            <>
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  setCreateModal({ isOpen: true, name: '', loading: false });
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, folder: null });
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  <line x1="12" y1="11" x2="12" y2="17" />
+                  <line x1="9" y1="14" x2="15" y2="14" />
+                </svg>
+                New folder
+              </button>
+              <button
+                className="context-menu-item"
+                onClick={() => {
+                  loadFolders();
+                  setContextMenu({ isOpen: false, x: 0, y: 0, type: null, folder: null });
+                  showToast('Folders refreshed', 'info');
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M23 4v6h-6" />
+                  <path d="M1 20v-6h6" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+                Refresh
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Create Folder Modal */}
       <Modal

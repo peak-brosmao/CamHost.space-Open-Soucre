@@ -130,6 +130,29 @@ export function relativeDate(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+export function formatDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    // Format: 9/16/2026, 21:38
+    const datePart = d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    return `${datePart}, ${timePart}`;
+  } catch {
+    return iso;
+  }
+}
+
+
 export function mimeInfo(mime = '') {
   if (mime.startsWith('image/')) return { color: '#00d4ff', label: 'IMG', bg: 'rgba(0,212,255,.12)' };
   if (mime.startsWith('video/')) return { color: '#7b4fff', label: 'VID', bg: 'rgba(123,79,255,.12)' };
