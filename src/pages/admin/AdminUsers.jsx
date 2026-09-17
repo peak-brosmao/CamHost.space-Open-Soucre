@@ -47,6 +47,7 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [modalType, setModalType] = useState(null); // 'quota' | 'password' | 'detail'
   const [quotaInput, setQuotaInput] = useState('10240');
+  const [confirmDelete, setConfirmDelete] = useState(null); // user object to confirm deletion
   const [newPassword, setNewPassword] = useState('');
   const { showToast } = useToast();
   const { user: me } = useAuth();
@@ -130,6 +131,15 @@ export default function AdminUsers() {
       showToast(res.message, 'success');
       setModalType(null);
     } catch (err) { showToast(err.message || 'Failed', 'error'); }
+  };
+
+  const handleDeleteUser = async (u) => {
+    try {
+      const res = await apiRequest(`/admin/users/${u.id}/delete`, { method: 'POST' });
+      showToast(res.message, 'success');
+      setConfirmDelete(null);
+      fetchUsers(search);
+    } catch (err) { showToast(err.message || 'Delete failed', 'error'); }
   };
 
   const filteredActivities = activities.filter(a => {
@@ -271,6 +281,13 @@ export default function AdminUsers() {
                                 >
                                   {u.is_banned ? 'Unban' : 'Ban'}
                                 </button>
+                                <button
+                                  className="admin-btn-xs danger"
+                                  onClick={() => setConfirmDelete(u)}
+                                  title="Permanently delete user"
+                                >
+                                  Delete
+                                </button>
                               </>
                             )}
                           </div>
@@ -394,6 +411,52 @@ export default function AdminUsers() {
               <button type="submit" className="btn-primary">Set Password</button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDelete && (
+        <Modal
+          title="⚠️ Delete User Permanently"
+          subtitle={`This will permanently remove ${confirmDelete.email}`}
+          onClose={() => setConfirmDelete(null)}
+        >
+          <div style={{ padding: '4px 0 16px', fontSize: '0.88rem', color: 'var(--adm-text-secondary)', lineHeight: 1.7 }}>
+            <p style={{ marginBottom: 10 }}>
+              Are you sure you want to <strong style={{ color: '#ef4444' }}>permanently delete</strong> this user?
+            </p>
+            <div style={{
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.25)',
+              borderRadius: 8,
+              padding: '12px 16px',
+              marginBottom: 12,
+              fontSize: '0.82rem'
+            }}>
+              <div style={{ marginBottom: 6 }}>
+                <strong style={{ color: 'var(--adm-text)' }}>User:</strong> {confirmDelete.display_name || confirmDelete.email}
+              </div>
+              <div style={{ marginBottom: 6 }}>
+                <strong style={{ color: 'var(--adm-text)' }}>Email:</strong> {confirmDelete.email}
+              </div>
+              <div>
+                <strong style={{ color: 'var(--adm-text)' }}>Files:</strong> {confirmDelete.total_files ?? 0} file(s) will also be deleted
+              </div>
+            </div>
+            <p style={{ color: '#ef4444', fontWeight: 600, fontSize: '0.8rem' }}>
+              ⛔ This action cannot be undone. All user data and files will be permanently removed.
+            </p>
+          </div>
+          <div className="admin-modal-footer">
+            <button className="btn-secondary" onClick={() => setConfirmDelete(null)}>Cancel</button>
+            <button
+              className="btn-primary"
+              style={{ background: '#ef4444', borderColor: '#ef4444' }}
+              onClick={() => handleDeleteUser(confirmDelete)}
+            >
+              Yes, Delete User
+            </button>
+          </div>
         </Modal>
       )}
     </div>

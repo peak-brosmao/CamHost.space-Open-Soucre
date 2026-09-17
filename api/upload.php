@@ -81,10 +81,10 @@ function handleUpload(): void {
     $needsChunking   = $sizeBytes > $cloudChunkLimit;
 
     if ($needsChunking) {
-        // ── Transparent Cloud Chunking ──────────────────────────────
-        // Split file into ≤49 MB parts, upload each silently to Telegram,
-        // store all file_ids as JSON array. Download handler reassembles
-        // them into one seamless file — user never sees chunk names.
+        // ── Transparent Cloud Chunking with Streamed Progress ───────
+        // Split file into ≤49 MB parts, upload each to Telegram,
+        // and stream real-time chunk progress to the frontend as NDJSON.
+        // This prevents gateway/proxy timeouts and gives the user live feedback.
         $chunkSize  = $cloudChunkLimit;
         $totalParts = (int)ceil($sizeBytes / $chunkSize);
         $fileIds    = [];
@@ -94,6 +94,20 @@ function handleUpload(): void {
         if (!$srcHandle) {
             jsonError('Server error: could not read uploaded file for processing.', 500);
         }
+
+        // ── Begin streaming NDJSON response ─────────────────────────
+        // This keeps the connection alive during long chunking operations
+        // and prevents reverse proxy timeouts (502/504).
+        http_response_code(200);
+        header('Content-Type: application/x-ndjson');
+        header('X-Accel-Buffering: no');       // Disable nginx/LiteSpeed buffering
+        header('Cache-Control: no-cache, no-store');
+        header('Connection: keep-alive');
+
+        // Aggressively disable all output buffering layers
+        while (ob_get_level()) { @ob_end_flush(); }
+        @ini_set('output_buffering', '0');
+        @ini_set('zlib.output_compression', '0');
 
         $tempDir = sys_get_temp_dir();
 
@@ -107,54 +121,68 @@ function handleUpload(): void {
             $chunkHandle = fopen($chunkPath, 'wb');
             if (!$chunkHandle) {
                 fclose($srcHandle);
-                jsonError('Server error: could not create temp chunk file.', 500);
+                // Stream error as NDJSON
+                echo json_encode(['type' => 'error', 'error' => 'Server error: could not create temp chunk file.']) . "\n";
+                flush();
+                exit;
             }
 
             fseek($srcHandle, $offset);
-            // Use stream_copy_to_stream for maximum I/O speed
             stream_copy_to_stream($srcHandle, $chunkHandle, $partSize);
             fclose($chunkHandle);
 
-            // Upload chunk with internal name (user never sees this)
             $chunkCaption = ($i === 0 && !empty($description))
                 ? htmlspecialchars($description, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 : '';
 
-            // Verify chunk file was written correctly before uploading
+            // Verify chunk file
             $actualChunkSize = filesize($chunkPath);
             if ($actualChunkSize === false || $actualChunkSize === 0) {
                 fclose($srcHandle);
                 @unlink($chunkPath);
-                jsonError("Server error: chunk " . ($i + 1) . " temp file is empty or unreadable.", 500);
+                echo json_encode(['type' => 'error', 'error' => "Chunk " . ($i + 1) . " temp file is empty or unreadable."]) . "\n";
+                flush();
+                exit;
             }
 
             error_log("[CamHost Chunk Upload] Part " . ($i + 1) . "/{$totalParts}: {$actualChunkSize} bytes (" . round($actualChunkSize / 1000000, 2) . " MB)");
 
             $result = sendToTelegram($chunkPath, $originalName, 'application/octet-stream', $chunkCaption);
-            @unlink($chunkPath); // Clean up temp chunk immediately
+            @unlink($chunkPath);
 
             if (!$result['ok']) {
                 fclose($srcHandle);
                 $desc = $result['description'] ?? 'Unknown error';
-                handleTelegramError($desc, $i + 1, $totalParts);
+                echo json_encode(['type' => 'error', 'error' => "Telegram upload failed (part " . ($i + 1) . "/{$totalParts}): {$desc}"]) . "\n";
+                flush();
+                exit;
             }
 
             $msg     = $result['result'];
             $partFid = extractFileId($msg);
             if (!$partFid) {
                 fclose($srcHandle);
-                jsonError("Telegram returned no file_id for part " . ($i + 1) . " of {$totalParts}.", 502);
+                echo json_encode(['type' => 'error', 'error' => "Telegram returned no file_id for part " . ($i + 1) . "."]) . "\n";
+                flush();
+                exit;
             }
 
             $fileIds[]    = $partFid;
             $messageIds[] = $msg['message_id'];
+
+            // ── Stream chunk progress to frontend ───────────────────
+            echo json_encode([
+                'type'    => 'progress',
+                'current' => $i + 1,
+                'total'   => $totalParts,
+            ]) . "\n";
+            flush();
         }
 
         fclose($srcHandle);
 
-        // Store as JSON array of file_ids (download handler detects and reassembles)
         $fileId    = json_encode($fileIds);
-        $messageId = $messageIds[0]; // Primary message reference
+        $messageId = $messageIds[0];
 
     } else {
         // ── Single File Upload (Local API or small file) ────────────
@@ -171,6 +199,11 @@ function handleUpload(): void {
     }
 
     if (!$fileId) {
+        if ($needsChunking) {
+            echo json_encode(['type' => 'error', 'error' => 'Telegram returned no file_id. Check bot permissions.']) . "\n";
+            flush();
+            exit;
+        }
         jsonError('Telegram returned no file_id. Check bot permissions.', 502);
     }
 
@@ -181,7 +214,7 @@ function handleUpload(): void {
             $chk = db()->prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?');
             $chk->execute([$folderId, $user['id']]);
             if (!$chk->fetchColumn()) {
-                $folderId = null; // Gracefully fallback to root if folder belongs to another user or doesn't exist
+                $folderId = null;
             }
         } catch (Exception $e) {
             $folderId = null;
@@ -194,7 +227,6 @@ function handleUpload(): void {
     $attempts = 0;
     $lastErr = null;
 
-    // Default to private (is_public = 0) unless explicitly passed as public
     $isPublic = 0;
     if (isset($_POST['is_public'])) {
         $isPublic = (filter_var($_POST['is_public'], FILTER_VALIDATE_BOOLEAN) || (int)$_POST['is_public'] === 1) ? 1 : 0;
@@ -226,8 +258,8 @@ function handleUpload(): void {
         } catch (PDOException $e) {
             $lastErr = $e;
             if (str_contains(strtolower($e->getMessage()), 'locked') && $attempts < 15) {
-                db(true); // Close and refresh the PDO connection handle to clear any stuck lock
-                usleep(200000 * $attempts); // Progressive backoff (200ms, 400ms, 600ms...)
+                db(true);
+                usleep(200000 * $attempts);
                 continue;
             }
             break;
@@ -239,6 +271,11 @@ function handleUpload(): void {
 
     if (!$inserted && $lastErr) {
         error_log('[CamHost Upload Save Error] ' . $lastErr->getMessage());
+        if ($needsChunking) {
+            echo json_encode(['type' => 'error', 'error' => 'Failed to save file metadata: ' . $lastErr->getMessage()]) . "\n";
+            flush();
+            exit;
+        }
         jsonError('Failed to save file metadata: ' . $lastErr->getMessage(), 500);
     }
 
@@ -247,7 +284,8 @@ function handleUpload(): void {
     }
     $shareUrl = FRONTEND_URL . '/share/' . $shareToken;
 
-    jsonSuccess([
+    $resultData = [
+        'success' => true,
         'file' => [
             'id'            => (int)$newId,
             'folder_id'     => $folderId,
@@ -271,7 +309,16 @@ function handleUpload(): void {
         'share_token' => $shareToken,
         'message'     => 'File uploaded successfully',
         'mode'        => TELEGRAM_LOCAL_MODE ? 'local-api (2 GB)' : ($needsChunking ? 'cloud-chunked' : 'cloud-api'),
-    ], 201);
+    ];
+
+    if ($needsChunking) {
+        // Stream final result as NDJSON
+        echo json_encode(['type' => 'result', ...$resultData]) . "\n";
+        flush();
+        exit;
+    }
+
+    jsonSuccess($resultData, 201);
 }
 // ── Telegram Helpers ────────────────────────────────────────────
 

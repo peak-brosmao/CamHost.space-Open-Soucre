@@ -79,7 +79,7 @@ export async function downloadFile(path, fileName, token = null) {
   }, 3000);
 }
 
-export function uploadWithProgress(path, formData, onProgress) {
+export function uploadWithProgress(path, formData, onProgress, onChunkProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const token = getToken();
@@ -87,8 +87,9 @@ export function uploadWithProgress(path, formData, onProgress) {
 
     xhr.open('POST', url);
     if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Accept', 'application/json, application/x-ndjson');
 
+    // Track browser → server upload progress
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
         const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
@@ -96,21 +97,101 @@ export function uploadWithProgress(path, formData, onProgress) {
       }
     };
 
+    // Track server → Telegram chunk progress (NDJSON streaming)
+    let lastParsedLength = 0;
+    let streamedResult = null;
+    let streamedError = null;
+
+    xhr.onprogress = () => {
+      // Parse new NDJSON lines from the response as they arrive
+      const text = xhr.responseText || '';
+      if (text.length <= lastParsedLength) return;
+
+      const newData = text.substring(lastParsedLength);
+      lastParsedLength = text.length;
+
+      const lines = newData.split('\n').filter(l => l.trim());
+      for (const line of lines) {
+        try {
+          const obj = JSON.parse(line);
+          if (obj.type === 'progress' && onChunkProgress) {
+            onChunkProgress(obj.current, obj.total);
+          } else if (obj.type === 'result') {
+            streamedResult = obj;
+          } else if (obj.type === 'error') {
+            streamedError = obj.error || 'Server processing failed';
+          }
+        } catch {
+          // Incomplete line, will be parsed on next onprogress
+        }
+      }
+    };
+
     xhr.onload = () => {
+      // If we already got a streamed error during NDJSON processing
+      if (streamedError) {
+        reject(new Error(streamedError));
+        return;
+      }
+
+      // If we got a streamed NDJSON result (chunked upload)
+      if (streamedResult) {
+        if (onProgress) onProgress(100, 0, 0);
+        resolve(streamedResult);
+        return;
+      }
+
+      // Regular JSON response (non-chunked upload)
+      const responseText = xhr.responseText || '';
       try {
-        const json = JSON.parse(xhr.responseText || '{}');
+        // Detect HTML error pages from reverse proxy timeouts (502/504)
+        if (responseText.trim().startsWith('<') || responseText.trim().startsWith('<!')) {
+          const statusMatch = responseText.match(/<title>\s*(\d{3}[^<]*)<\/title>/i);
+          const statusHint = statusMatch ? statusMatch[1] : `HTTP ${xhr.status}`;
+          reject(new Error(`Server gateway timeout (${statusHint}). The file may be too large for the server to process. Try again or contact support.`));
+          return;
+        }
+
+        // Try parsing as NDJSON (in case onprogress didn't fire, proxy buffered everything)
+        if (responseText.includes('\n') && responseText.trim().startsWith('{')) {
+          const lines = responseText.trim().split('\n').filter(l => l.trim());
+          for (const line of lines) {
+            try {
+              const obj = JSON.parse(line);
+              if (obj.type === 'error') {
+                reject(new Error(obj.error || 'Server processing failed'));
+                return;
+              }
+              if (obj.type === 'result') {
+                if (onProgress) onProgress(100, 0, 0);
+                resolve(obj);
+                return;
+              }
+            } catch { /* skip malformed lines */ }
+          }
+        }
+
+        // Standard single JSON response
+        const json = JSON.parse(responseText);
         if (xhr.status < 300 && json.success !== false) {
           if (onProgress) onProgress(100, 0, 0);
           resolve(json);
         } else {
-          reject(new Error(json.error || 'Upload failed'));
+          reject(new Error(json.error || `Upload failed (HTTP ${xhr.status})`));
         }
       } catch {
-        reject(new Error('Invalid server response'));
+        if (xhr.status === 0) {
+          reject(new Error('Connection lost. Check your internet and try again.'));
+        } else if (xhr.status >= 502 && xhr.status <= 504) {
+          reject(new Error(`Server timeout (HTTP ${xhr.status}). Large files take longer to process — please try again.`));
+        } else {
+          reject(new Error(`Invalid server response (HTTP ${xhr.status}). The server may have timed out while processing your file.`));
+        }
       }
     };
 
-    xhr.onerror = () => reject(new Error('Network connection error'));
+    xhr.onerror = () => reject(new Error('Network connection error. Check your internet and try again.'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out. The file may be too large or your connection is slow.'));
     xhr.send(formData);
   });
 }

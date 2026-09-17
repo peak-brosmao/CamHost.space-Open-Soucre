@@ -41,7 +41,11 @@ export default function UploadPage() {
       size: f.size,
       type: f.type,
       progress: 0,
-      status: 'pending', // 'pending' | 'uploading' | 'done' | 'error'
+      speed: 0,
+      eta: 0,
+      chunkCurrent: 0,
+      chunkTotal: 0,
+      status: 'pending', // 'pending' | 'uploading' | 'saving' | 'done' | 'error'
       error: null,
     }));
 
@@ -97,13 +101,19 @@ export default function UploadPage() {
     setUploading(true);
 
     const folderIdParam = selectedFolderId ? selectedFolderId : null;
+    const speedTracker = { lastTime: 0, lastLoaded: 0, samples: [] };
 
     const uploadSingleItem = async (item) => {
       if (item.status === 'done') return;
 
       setFileQueue((prev) =>
-        prev.map((it) => (it.id === item.id ? { ...it, status: 'uploading', progress: 0 } : it))
+        prev.map((it) => (it.id === item.id ? { ...it, status: 'uploading', progress: 0, speed: 0, eta: 0 } : it))
       );
+
+      // Reset speed tracker for each file
+      speedTracker.lastTime = Date.now();
+      speedTracker.lastLoaded = 0;
+      speedTracker.samples = [];
 
       const formData = new FormData();
       formData.append('file', item.file);
@@ -112,9 +122,38 @@ export default function UploadPage() {
       }
 
       try {
-        const res = await uploadWithProgress('/upload', formData, (percent) => {
+        const res = await uploadWithProgress('/upload', formData, (percent, loaded, total) => {
+          const now = Date.now();
+          const actualLoaded = loaded || Math.round((percent / 100) * item.size);
+          const actualTotal = total || item.size;
+          const timeDelta = (now - speedTracker.lastTime) / 1000;
+          const bytesDelta = actualLoaded - speedTracker.lastLoaded;
+
+          let speed = 0;
+          let eta = 0;
+
+          if (timeDelta > 0.15 && bytesDelta > 0) {
+            const sample = bytesDelta / timeDelta;
+            speedTracker.samples.push(sample);
+            if (speedTracker.samples.length > 5) speedTracker.samples.shift();
+            speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
+            speedTracker.lastTime = now;
+            speedTracker.lastLoaded = actualLoaded;
+          } else if (speedTracker.samples.length > 0) {
+            speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
+          }
+
+          if (speed > 0) {
+            eta = Math.max(0, Math.round((actualTotal - actualLoaded) / speed));
+          }
+
           setFileQueue((prev) =>
-            prev.map((it) => (it.id === item.id ? { ...it, progress: percent } : it))
+            prev.map((it) => (it.id === item.id ? { ...it, progress: percent, speed, eta } : it))
+          );
+        }, (chunkCurrent, chunkTotal) => {
+          // Server is uploading chunks to Telegram
+          setFileQueue((prev) =>
+            prev.map((it) => (it.id === item.id ? { ...it, status: 'saving', chunkCurrent, chunkTotal, speed: 0, eta: 0 } : it))
           );
         });
 
@@ -290,8 +329,28 @@ export default function UploadPage() {
                                     <span className="dot-animation">...</span>
                                   </span>
                                 ) : (
-                                  ` · ${item.progress}%`
+                                  <>
+                                    <span>{` · ${item.progress}%`}</span>
+                                    {item.speed > 0 && (
+                                      <span style={{ color: 'var(--cyan)', marginLeft: '6px', fontSize: '0.74rem' }}>
+                                        ↑ {formatBytes(item.speed)}/s
+                                      </span>
+                                    )}
+                                    {item.speed > 0 && item.eta > 0 && (
+                                      <span style={{ color: 'var(--text-muted)', marginLeft: '6px', fontSize: '0.72rem' }}>
+                                        · {item.eta < 5 ? 'Almost done…' : item.eta < 60 ? `${item.eta}s left` : item.eta < 3600 ? `${Math.floor(item.eta / 60)}m ${item.eta % 60}s left` : `${Math.floor(item.eta / 3600)}h ${Math.floor((item.eta % 3600) / 60)}m left`}
+                                      </span>
+                                    )}
+                                  </>
                                 )
+                              )}
+                              {item.status === 'saving' && (
+                                <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                                  {' · '}
+                                  {item.chunkTotal > 0
+                                    ? <span>Saving to Telegram ({item.chunkCurrent}/{item.chunkTotal})</span>
+                                    : <><span className="processing-pulse">Processing</span><span className="dot-animation">...</span></>}
+                                </span>
                               )}
                               {item.status === 'done' && <span style={{ color: '#00e08b', fontWeight: 600 }}> · Stored in Telegram Cloud</span>}
                               {item.status === 'error' && <span style={{ color: '#ff4d6d' }}> · {item.error}</span>}
@@ -299,18 +358,22 @@ export default function UploadPage() {
                           </div>
                         </div>
 
-                        {item.status === 'uploading' && (
+                        {(item.status === 'uploading' || item.status === 'saving') && (
                           <div style={{ width: '120px', background: 'var(--bg3)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
                             <div
-                              className={item.progress >= 99 ? 'progress-bar-processing' : ''}
+                              className={item.progress >= 99 && item.status !== 'saving' ? 'progress-bar-processing' : ''}
                               style={{
-                                width: item.progress >= 99 ? '100%' : `${item.progress}%`,
-                                background: item.progress >= 99
+                                width: item.status === 'saving' && item.chunkTotal > 0
+                                  ? `${Math.round((item.chunkCurrent / item.chunkTotal) * 100)}%`
+                                  : item.progress >= 99 ? '100%' : `${item.progress}%`,
+                                background: item.status === 'saving'
+                                  ? 'linear-gradient(90deg, #f59e0b, #ff6b35)'
+                                  : item.progress >= 99
                                   ? 'linear-gradient(90deg, var(--cyan), var(--primary), var(--cyan))'
                                   : 'var(--primary)',
-                                backgroundSize: item.progress >= 99 ? '200% 100%' : 'auto',
+                                backgroundSize: item.progress >= 99 && item.status !== 'saving' ? '200% 100%' : 'auto',
                                 height: '100%',
-                                transition: 'width 0.3s ease',
+                                transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                               }}
                             />
                           </div>

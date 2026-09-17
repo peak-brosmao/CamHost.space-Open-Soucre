@@ -236,6 +236,20 @@ function handleAdminUsers(string $method, array $pathParts, array $admin): void 
             jsonSuccess(['message' => "Password successfully reset for {$targetUser['email']}"]);
         }
 
+        if ($action === 'delete') {
+            if ((int)$targetUser['id'] === (int)$admin['id']) {
+                jsonError('You cannot delete your own administrator account', 400);
+            }
+            // Cascade: delete user's files first
+            $countStmt = $pdo->prepare('SELECT COUNT(*) FROM files WHERE user_id = ?');
+            $countStmt->execute([$userId]);
+            $fileCount = (int)$countStmt->fetchColumn();
+            $pdo->prepare('DELETE FROM files WHERE user_id = ?')->execute([$userId]);
+            $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$userId]);
+            logAudit((int)$admin['id'], 'USER_DELETED', 'user', (string)$userId, "Admin {$admin['email']} permanently deleted user {$targetUser['email']} and {$fileCount} file(s)");
+            jsonSuccess(['message' => "User '{$targetUser['email']}' and {$fileCount} file(s) permanently deleted"]);
+        }
+
         jsonError('Invalid action', 400);
     }
 
