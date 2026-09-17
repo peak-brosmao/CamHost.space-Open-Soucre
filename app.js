@@ -50,44 +50,6 @@
   });
 })();
 
-// ── Countdown Timer ──
-const LAUNCH_DATE = new Date('2027-01-01T00:00:00');
-
-function pad(n) { return String(n).padStart(2, '0'); }
-
-let prevVals = { days: -1, hours: -1, minutes: -1, seconds: -1 };
-
-function updateCountdown() {
-  const now = new Date();
-  const diff = Math.max(0, LAUNCH_DATE - now);
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-  const fields = [
-    { id: 'cd-days', val: days, key: 'days' },
-    { id: 'cd-hours', val: hours, key: 'hours' },
-    { id: 'cd-minutes', val: minutes, key: 'minutes' },
-    { id: 'cd-seconds', val: seconds, key: 'seconds' },
-  ];
-
-  fields.forEach(({ id, val, key }) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (prevVals[key] !== val) {
-      el.classList.remove('flip');
-      void el.offsetWidth;
-      el.classList.add('flip');
-      prevVals[key] = val;
-    }
-    el.textContent = pad(val);
-  });
-}
-
-setInterval(updateCountdown, 1000);
-updateCountdown();
 
 // ── Google Sheets Integration ──
 // 👇 Paste your Apps Script Web App URL here after deploying
@@ -139,7 +101,6 @@ async function handleSignup(e) {
 
   const form = document.getElementById('signup-form');
   const success = document.getElementById('signup-success');
-  const errorMsg = document.getElementById('signup-error');
   const btn = document.getElementById('notify-btn');
   const emailInput = document.getElementById('email-input');
   const email = emailInput.value.trim();
@@ -148,9 +109,8 @@ async function handleSignup(e) {
   btn.disabled = true;
   btn.innerHTML = '<span class="btn-text">Saving...</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16" class="spin-icon"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
 
-  // Hide previous messages
+  // Hide previous success
   success.classList.remove('visible');
-  if (errorMsg) errorMsg.classList.remove('visible');
 
   try {
     if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
@@ -169,7 +129,6 @@ async function handleSignup(e) {
     btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
     form.reset();
     success.classList.add('visible');
-    if (errorMsg) errorMsg.classList.remove('visible');
 
     setTimeout(() => {
       btn.innerHTML = '<span class="btn-text">Notify Me</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
@@ -178,16 +137,8 @@ async function handleSignup(e) {
     }, 3000);
 
   } catch (err) {
-    // ❌ Error state
     btn.innerHTML = '✗ Failed';
     btn.style.background = 'linear-gradient(135deg, #ff4d4d, #cc0000)';
-    if (errorMsg) {
-      errorMsg.textContent = '⚠️ ' + err.message;
-      errorMsg.classList.add('visible');
-    } else {
-      alert('Error: ' + err.message);
-    }
-
     setTimeout(() => {
       btn.innerHTML = '<span class="btn-text">Notify Me</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
       btn.style.background = '';
