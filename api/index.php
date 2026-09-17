@@ -149,6 +149,19 @@ try {
         exit;
     }
 
+    // ── Client-side chunked upload routes ──
+    if ($rawPath === '/upload-chunk' && $method === 'POST') {
+        require __DIR__ . '/upload-chunk.php';
+        handleUploadChunk();
+        exit;
+    }
+
+    if ($rawPath === '/upload-finalize' && $method === 'POST') {
+        require __DIR__ . '/upload-finalize.php';
+        handleUploadFinalize();
+        exit;
+    }
+
     // ── Folder routes — /folders, /folders/{id} ──
     if (preg_match('#^/folders(?:/(\d+))?$#', $rawPath, $fm)) {
         require __DIR__ . '/folders.php';

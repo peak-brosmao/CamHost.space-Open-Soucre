@@ -12,7 +12,7 @@ import {
   mimeInfo,
   API_BASE,
   downloadFile,
-  uploadWithProgress,
+  uploadChunked,
 } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -605,62 +605,51 @@ export default function FilesPage({ filter: propFilter }) {
         folderName: folderLabel,
       }));
 
-      const formData = new FormData();
-      formData.append('file', file);
-      if (effectiveFolderId) {
-        formData.append('folder_id', String(effectiveFolderId));
-      }
 
       try {
-        const res = await uploadWithProgress('/upload', formData, (percent, loaded, total) => {
-          const now = Date.now();
-          const tracker = speedTrackRef.current;
-          const actualLoaded = loaded || Math.round((percent / 100) * file.size);
-          const actualTotal = total || file.size;
-          const timeDelta = (now - tracker.lastTime) / 1000;
-          const bytesDelta = actualLoaded - tracker.lastLoaded;
+        const res = await uploadChunked(
+          file,
+          { folder_id: effectiveFolderId ?? null },
+          (percent, loaded, total) => {
+            const now = Date.now();
+            const tracker = speedTrackRef.current;
+            const actualLoaded = loaded || Math.round((percent / 100) * file.size);
+            const actualTotal = total || file.size;
+            const timeDelta = (now - tracker.lastTime) / 1000;
+            const bytesDelta = actualLoaded - tracker.lastLoaded;
 
-          setUploadTask((prev) => {
-            let speed = prev.speed || 0;
-            let eta = prev.eta || 0;
+            setUploadTask((prev) => {
+              let speed = prev.speed || 0;
+              let eta = prev.eta || 0;
 
-            if (timeDelta > 0.1 && bytesDelta > 0) {
-              const sample = bytesDelta / timeDelta;
-              tracker.samples.push(sample);
-              if (tracker.samples.length > 5) tracker.samples.shift();
-              speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
-              tracker.lastTime = now;
-              tracker.lastLoaded = actualLoaded;
-            } else if (tracker.samples.length > 0) {
-              speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
-            }
+              if (timeDelta > 0.1 && bytesDelta > 0) {
+                const sample = bytesDelta / timeDelta;
+                tracker.samples.push(sample);
+                if (tracker.samples.length > 5) tracker.samples.shift();
+                speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
+                tracker.lastTime = now;
+                tracker.lastLoaded = actualLoaded;
+              } else if (tracker.samples.length > 0) {
+                speed = tracker.samples.reduce((a, b) => a + b, 0) / tracker.samples.length;
+              }
 
-            if (speed > 0) {
-              const remaining = actualTotal - actualLoaded;
-              eta = Math.max(0, Math.round(remaining / speed));
-            }
+              if (speed > 0) {
+                const remaining = actualTotal - actualLoaded;
+                eta = Math.max(0, Math.round(remaining / speed));
+              }
 
-            return {
-              ...prev,
-              percent,
-              loadedBytes: actualLoaded,
-              totalBytes: actualTotal,
-              speed,
-              eta,
-              status: percent >= 100 ? 'saving' : 'uploading',
-            };
-          });
-        }, (chunkCurrent, chunkTotal) => {
-          // onChunkProgress — server is uploading chunks to Telegram
-          setUploadTask((prev) => ({
-            ...prev,
-            status: 'saving',
-            chunkCurrent,
-            chunkTotal,
-            speed: 0,
-            eta: 0,
-          }));
-        });
+              return {
+                ...prev,
+                percent,
+                loadedBytes: actualLoaded,
+                totalBytes: actualTotal,
+                speed,
+                eta,
+                status: percent >= 100 ? 'done' : 'uploading',
+              };
+            });
+          }
+        );
 
         const shareUrl = res?.share_url || res?.file?.share_url || (res?.share_token ? `${window.location.origin}/share/${res.share_token}` : '');
         if (shareUrl) lastShareUrl = shareUrl;
@@ -2355,9 +2344,6 @@ export default function FilesPage({ filter: propFilter }) {
               {uploadTask.status === 'uploading' && (
                 <span className="spinner-sm" style={{ borderColor: 'rgba(0, 212, 255, 0.3)', borderTopColor: '#00d4ff' }} />
               )}
-              {uploadTask.status === 'saving' && (
-                <span className="spinner-sm" style={{ borderColor: 'rgba(245, 158, 11, 0.3)', borderTopColor: '#f59e0b' }} />
-              )}
               {uploadTask.status === 'done' && (
                 <svg viewBox="0 0 24 24" fill="none" stroke="#00e08b" strokeWidth="2.5" width="18" height="18">
                   <polyline points="20 6 9 17 4 12" />
@@ -2372,9 +2358,6 @@ export default function FilesPage({ filter: propFilter }) {
               )}
               <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text)' }}>
                 {uploadTask.status === 'uploading' && `Uploading (${uploadTask.currentFileIndex}/${uploadTask.totalFiles})`}
-                {uploadTask.status === 'saving' && (uploadTask.chunkTotal > 0
-                  ? `Saving to Telegram (${uploadTask.chunkCurrent}/${uploadTask.chunkTotal})`
-                  : 'Processing file...')}
                 {uploadTask.status === 'done' && 'Upload Complete! (100%)'}
                 {uploadTask.status === 'error' && 'Upload Failed'}
               </span>
@@ -2417,7 +2400,7 @@ export default function FilesPage({ filter: propFilter }) {
           </div>
 
           {/* Warning Banner during active upload */}
-          {(uploadTask.status === 'uploading' || uploadTask.status === 'saving') && (
+          {uploadTask.status === 'uploading' && (
             <div
               style={{
                 display: 'flex',
@@ -2453,19 +2436,14 @@ export default function FilesPage({ filter: propFilter }) {
             }}
           >
             <div
-              className={uploadTask.status === 'saving' && uploadTask.chunkTotal > 0 ? '' : ''}
               style={{
-                width: uploadTask.status === 'saving' && uploadTask.chunkTotal > 0
-                  ? `${Math.round((uploadTask.chunkCurrent / uploadTask.chunkTotal) * 100)}%`
-                  : `${uploadTask.percent}%`,
+                width: `${uploadTask.percent}%`,
                 height: '100%',
                 background:
                   uploadTask.status === 'error'
                     ? '#ff4757'
                     : uploadTask.status === 'done'
                     ? 'linear-gradient(90deg, #00e08b, #00d4ff)'
-                    : uploadTask.status === 'saving'
-                    ? 'linear-gradient(90deg, #f59e0b, #ff6b35)'
                     : 'linear-gradient(90deg, #00d4ff, #7928ca)',
                 borderRadius: '4px',
                 transition: 'width 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -2475,11 +2453,7 @@ export default function FilesPage({ filter: propFilter }) {
 
           {/* Progress Text, Speed & ETA */}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            <span>
-              {uploadTask.status === 'saving' && uploadTask.chunkTotal > 0
-                ? `Chunk ${uploadTask.chunkCurrent}/${uploadTask.chunkTotal}`
-                : `${uploadTask.percent}%`}
-            </span>
+            <span>{uploadTask.percent}%</span>
             <span>
               {formatBytes(uploadTask.loadedBytes)} / {formatBytes(uploadTask.totalBytes)}
             </span>

@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
-import { apiRequest, uploadWithProgress, formatBytes, mimeInfo } from '../api/client';
+import { apiRequest, uploadChunked, formatBytes, mimeInfo } from '../api/client';
 
 export default function UploadPage() {
   const { refreshUser } = useAuth();
@@ -115,50 +115,43 @@ export default function UploadPage() {
       speedTracker.lastLoaded = 0;
       speedTracker.samples = [];
 
-      const formData = new FormData();
-      formData.append('file', item.file);
-      if (folderIdParam) {
-        formData.append('folder_id', folderIdParam);
-      }
-
       try {
-        const res = await uploadWithProgress('/upload', formData, (percent, loaded, total) => {
-          const now = Date.now();
-          const actualLoaded = loaded || Math.round((percent / 100) * item.size);
-          const actualTotal = total || item.size;
-          const timeDelta = (now - speedTracker.lastTime) / 1000;
-          const bytesDelta = actualLoaded - speedTracker.lastLoaded;
+        const res = await uploadChunked(
+          item.file,
+          { folder_id: folderIdParam ?? null },
+          (percent, loaded, total) => {
+            const now = Date.now();
+            const actualLoaded = loaded || Math.round((percent / 100) * item.size);
+            const actualTotal = total || item.size;
+            const timeDelta = (now - speedTracker.lastTime) / 1000;
+            const bytesDelta = actualLoaded - speedTracker.lastLoaded;
 
-          setFileQueue((prev) =>
-            prev.map((it) => {
-              if (it.id !== item.id) return it;
-              let speed = it.speed || 0;
-              let eta = it.eta || 0;
+            setFileQueue((prev) =>
+              prev.map((it) => {
+                if (it.id !== item.id) return it;
+                let speed = it.speed || 0;
+                let eta = it.eta || 0;
 
-              if (timeDelta > 0.1 && bytesDelta > 0) {
-                const sample = bytesDelta / timeDelta;
-                speedTracker.samples.push(sample);
-                if (speedTracker.samples.length > 5) speedTracker.samples.shift();
-                speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
-                speedTracker.lastTime = now;
-                speedTracker.lastLoaded = actualLoaded;
-              } else if (speedTracker.samples.length > 0) {
-                speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
-              }
+                if (timeDelta > 0.1 && bytesDelta > 0) {
+                  const sample = bytesDelta / timeDelta;
+                  speedTracker.samples.push(sample);
+                  if (speedTracker.samples.length > 5) speedTracker.samples.shift();
+                  speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
+                  speedTracker.lastTime = now;
+                  speedTracker.lastLoaded = actualLoaded;
+                } else if (speedTracker.samples.length > 0) {
+                  speed = speedTracker.samples.reduce((a, b) => a + b, 0) / speedTracker.samples.length;
+                }
 
-              if (speed > 0) {
-                eta = Math.max(0, Math.round((actualTotal - actualLoaded) / speed));
-              }
+                if (speed > 0) {
+                  eta = Math.max(0, Math.round((actualTotal - actualLoaded) / speed));
+                }
 
-              return { ...it, progress: percent, speed, eta };
-            })
-          );
-        }, (chunkCurrent, chunkTotal) => {
-          // Server is uploading chunks to Telegram
-          setFileQueue((prev) =>
-            prev.map((it) => (it.id === item.id ? { ...it, status: 'saving', chunkCurrent, chunkTotal, speed: 0, eta: 0 } : it))
-          );
-        });
+                return { ...it, progress: percent, speed, eta };
+              })
+            );
+          }
+        );
 
         const shareUrl = res?.share_url || res?.file?.share_url || (res?.share_token ? `${window.location.origin}/share/${res.share_token}` : '');
 
