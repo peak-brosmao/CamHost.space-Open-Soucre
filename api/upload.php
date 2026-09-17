@@ -224,22 +224,43 @@ function sendToTelegram(string $path, string $name, string $mime, string $captio
 
 /**
  * Extract the Telegram file_id from any message type.
- * Telegram returns different keys depending on file type.
+ * Telegram returns different keys depending on file type:
+ * - WebP files are often categorized as 'sticker' or 'animation'
+ * - Standard files are under 'document'
+ * - Media under 'photo', 'video', 'audio', etc.
  */
 function extractFileId(array $msg): ?string {
-    // Documents and other files
-    if (!empty($msg['document']))  return $msg['document']['file_id'];
-    if (!empty($msg['video']))     return $msg['video']['file_id'];
-    if (!empty($msg['audio']))     return $msg['audio']['file_id'];
-    if (!empty($msg['voice']))     return $msg['voice']['file_id'];
+    // 1. Direct standard keys
+    if (!empty($msg['document']['file_id']))    return $msg['document']['file_id'];
+    if (!empty($msg['sticker']['file_id']))     return $msg['sticker']['file_id'];   // WebP / Stickers
+    if (!empty($msg['animation']['file_id']))   return $msg['animation']['file_id']; // WebP/GIF animations
+    if (!empty($msg['video']['file_id']))       return $msg['video']['file_id'];
+    if (!empty($msg['audio']['file_id']))       return $msg['audio']['file_id'];
+    if (!empty($msg['voice']['file_id']))       return $msg['voice']['file_id'];
+    if (!empty($msg['video_note']['file_id']))  return $msg['video_note']['file_id'];
 
-    // Photos — use the largest size
-    if (!empty($msg['photo'])) {
+    // 2. Photos — use the largest size
+    if (!empty($msg['photo']) && is_array($msg['photo'])) {
         $largest = end($msg['photo']);
-        return $largest['file_id'] ?? null;
+        if (!empty($largest['file_id'])) return $largest['file_id'];
     }
 
-    return null;
+    // 3. Universal recursive search: locate ANY 'file_id' in the response
+    $finder = function($node) use (&$finder) {
+        if (!is_array($node)) return null;
+        if (!empty($node['file_id']) && is_string($node['file_id'])) {
+            return $node['file_id'];
+        }
+        foreach ($node as $child) {
+            if (is_array($child)) {
+                $res = $finder($child);
+                if ($res) return $res;
+            }
+        }
+        return null;
+    };
+
+    return $finder($msg);
 }
 
 // ── Utility ─────────────────────────────────────────────────────

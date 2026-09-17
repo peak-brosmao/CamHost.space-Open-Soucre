@@ -429,10 +429,15 @@ function getTelegramFileInfo(string $fileId): array {
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT        => 30,
-        CURLOPT_CONNECTTIMEOUT => CURL_CONNECT_TIMEOUT,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
     ]);
     $res = curl_exec($ch);
+    $curlErr = curl_error($ch);
     curl_close($ch);
+    if ($curlErr) {
+        error_log('[CamHost getTelegramFileInfo Error] ' . $curlErr);
+    }
     return json_decode($res, true) ?? ['ok' => false];
 }
 
