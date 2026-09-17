@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Register — CamHost.space</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="_app.css" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px
+    }
+
+    .auth-wrap {
+      width: 100%;
+      max-width: 400px;
+      animation: fadeUp .5s ease both
+    }
+
+    .auth-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 36px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 24px 64px var(--shadow), 0 0 0 1px var(--border-glow)
+    }
+
+    .auth-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 28px
+    }
+
+    .auth-logo-icon {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, rgba(0, 212, 255, .15), rgba(123, 79, 255, .1));
+      border: 1px solid var(--border-glow);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .auth-logo-name {
+      font-size: 1.2rem;
+      font-weight: 700
+    }
+
+    .auth-title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 4px
+    }
+
+    .auth-sub {
+      color: var(--text-muted);
+      font-size: .875rem;
+      text-align: center;
+      margin-bottom: 26px
+    }
+
+    .auth-error {
+      margin-top: 12px;
+      background: rgba(255, 77, 77, .1);
+      border: 1px solid rgba(255, 77, 77, .22);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #ff6b6b;
+      font-size: .84rem;
+      text-align: center;
+      display: none
+    }
+
+    .auth-error.show {
+      display: block
+    }
+
+    .auth-success {
+      margin-top: 12px;
+      background: rgba(0, 201, 122, .1);
+      border: 1px solid rgba(0, 201, 122, .22);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: var(--green);
+      font-size: .84rem;
+      text-align: center;
+      display: none
+    }
+
+    .auth-success.show {
+      display: block
+    }
+
+    .auth-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: .84rem;
+      color: var(--text-muted)
+    }
+
+    .auth-footer a {
+      color: var(--cyan);
+      text-decoration: none;
+      font-weight: 600
+    }
+
+    .auth-footer a:hover {
+      text-decoration: underline
+    }
+
+    .pass-strength {
+      height: 3px;
+      border-radius: 99px;
+      margin-top: 6px;
+      overflow: hidden;
+      background: var(--surface)
+    }
+
+    .pass-fill {
+      height: 100%;
+      border-radius: 99px;
+      width: 0;
+      transition: width .3s, background .3s
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">
+          <svg viewBox="0 0 40 40" fill="none" width="24" height="24">
+            <path
+              d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z"
+              fill="url(#rg)" />
+            <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95" />
+            <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8" />
+            <defs>
+              <linearGradient id="rg" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#00d4ff" />
+                <stop offset="1" stop-color="#7b4fff" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="auth-logo-name">CamHost<span style="color:var(--cyan)">.space</span></span>
+      </div>
+
+      <h1 class="auth-title">Create account</h1>
+      <p class="auth-sub">Get unlimited private cloud storage, free</p>
+
+      <form id="reg-form">
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" class="form-input" placeholder="you@example.com" required
+            autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password <span style="color:var(--text-faint);font-weight:400">(min 8
+              chars)</span></label>
+          <input type="password" id="password" class="form-input" placeholder="Choose a strong password" required
+            autocomplete="new-password" minlength="8" />
+          <div class="pass-strength">
+            <div class="pass-fill" id="pass-fill"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="confirm">Confirm Password</label>
+          <input type="password" id="confirm" class="form-input" placeholder="Repeat your password" required
+            autocomplete="new-password" />
+        </div>
+        <div class="auth-error" id="auth-error"></div>
+        <div class="auth-success" id="auth-success"></div>
+        <button type="submit" class="btn btn-purple" id="reg-btn"
+          style="width:100%;justify-content:center;margin-top:6px;padding:13px">
+          Create Account
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <polyline points="12 5 19 12 12 19" />
+          </svg>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="login.html">Sign in →</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="_app.js"></script>
+  <script>
+    initCanvas();
+
+    // Password strength meter
+    document.getElementById('password').addEventListener('input', function () {
+      const v = this.value, fill = document.getElementById('pass-fill');
+      let score = 0;
+      if (v.length >= 8) score++;
+      if (v.length >= 12) score++;
+      if (/[A-Z]/.test(v)) score++;
+      if (/[0-9]/.test(v)) score++;
+      if (/[^A-Za-z0-9]/.test(v)) score++;
+      const colors = ['', '#ff4d4d', '#ff9500', '#ffcc00', '#00c97a', '#00d4ff'];
+      fill.style.width = (score / 5 * 100) + '%';
+      fill.style.background = colors[score] || '';
+    });
+
+    document.getElementById('reg-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('reg-btn');
+      const errEl = document.getElementById('auth-error');
+      const okEl = document.getElementById('auth-success');
+      const email = document.getElementById('email').value.trim();
+      const pass = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm').value;
+
+      errEl.classList.remove('show'); okEl.classList.remove('show');
+      if (pass !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.classList.add('show'); return; }
+      if (pass.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; errEl.classList.add('show'); return; }
+
+      btn.disabled = true;
+      btn.innerHTML = '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="17" height="17"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Creating account…';
+
+      try {
+        const res = await apiRequest('/auth/register', {
+          method: 'POST',
+          body: { email, password: pass, confirm_password: confirm }
+        });
+        localStorage.setItem('ch-token', res.token);
+        localStorage.setItem('ch-user', JSON.stringify(res.user));
+        okEl.textContent = '✓ Account created! Redirecting…';
+        okEl.classList.add('show');
+        setTimeout(() => location.href = 'files.html', 1000);
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btn.innerHTML = 'Create Account <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+      }
+    });
+  </script>
+</body>
+
+</html>

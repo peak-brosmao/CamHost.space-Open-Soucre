@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>My Files — CamHost.space</title>
+  <meta name="robots" content="noindex"/>
+  <link rel="stylesheet" href="_app.css"/>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menu-btn" aria-label="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <nav class="breadcrumb">
+          <a href="index.html" style="color:var(--text-muted);text-decoration:none">Home</a>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">My Files</span>
+        </nav>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="theme-btn" title="Toggle theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+        <a href="upload.html" class="btn btn-primary btn-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Upload
+        </a>
+      </div>
+    </header>
+
+    <main class="page">
+      <!-- Stats -->
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card"><div class="stat-icon si-cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div><div><div class="stat-value" id="st-files">—</div><div class="stat-label">Total Files</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div><div class="stat-value" id="st-size">—</div><div class="stat-label">Total Size</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-pink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><div><div class="stat-value" id="st-types">—</div><div class="stat-label">File Types</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="stat-value" id="st-latest">—</div><div class="stat-label">Last Upload</div></div></div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="page-header">
+        <div class="page-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          All Files
+        </div>
+        <div class="page-actions">
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" class="search-input" id="search-input" placeholder="Search files…"/>
+          </div>
+          <select class="form-input form-select" id="sort-select" style="width:auto;padding:7px 12px;height:36px">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="name">Name A–Z</option>
+            <option value="size_desc">Largest</option>
+            <option value="size_asc">Smallest</option>
+          </select>
+          <div class="view-toggle">
+            <button class="view-btn active" id="btn-grid" title="Grid view">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <button class="view-btn" id="btn-list" title="List view">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- File container -->
+      <div id="file-container"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-icon danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+    </div>
+    <div class="modal-title" id="confirm-title">Delete file?</div>
+    <div class="modal-sub"   id="confirm-sub">This action cannot be undone. The file will also be removed from Telegram.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="_app.js"></script>
+<script>
+let allFiles = [], view = 'grid';
+
+async function init() {
+  const user = await requireAuth();
+  renderSidebar('files');
+  initSidebar('files');
+  initCanvas();
+  fillUserBadge(user);
+  await loadFiles();
+  bindControls();
+}
+
+async function loadFiles() {
+  const con = document.getElementById('file-container');
+  con.innerHTML = '<div style="display:flex;gap:10px;flex-wrap:wrap">' + Array.from({length:8},()=>'<div class="skeleton" style="height:180px;border-radius:14px;flex:1 1 180px"></div>').join('') + '</div>';
+  try {
+    const res = await apiRequest('/files');
+    allFiles = res.files || [];
+    updateStats();
+    renderFiles(allFiles);
+  } catch(e) {
+    con.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="empty-title">Failed to load files</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function updateStats() {
+  const totalSize = allFiles.reduce((s,f)=>s+f.size_bytes,0);
+  const types = new Set(allFiles.map(f=>f.mime_type?.split('/')[0]||'other')).size;
+  document.getElementById('st-files').textContent  = allFiles.length;
+  document.getElementById('st-size').textContent   = formatBytes(totalSize);
+  document.getElementById('st-types').textContent  = types;
+  document.getElementById('st-latest').textContent = allFiles.length ? relativeDate(allFiles[0].created_at) : '—';
+}
+
+function getFiltered() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const s = document.getElementById('sort-select').value;
+  let arr = q ? allFiles.filter(f=>f.original_name.toLowerCase().includes(q)) : [...allFiles];
+  if(s==='oldest')    arr.sort((a,b)=>a.created_at.localeCompare(b.created_at));
+  else if(s==='name') arr.sort((a,b)=>a.original_name.localeCompare(b.original_name));
+  else if(s==='size_desc') arr.sort((a,b)=>b.size_bytes-a.size_bytes);
+  else if(s==='size_asc')  arr.sort((a,b)=>a.size_bytes-b.size_bytes);
+  else arr.sort((a,b)=>b.created_at.localeCompare(a.created_at));
+  return arr;
+}
+
+function renderFiles(files) {
+  const con = document.getElementById('file-container');
+  if(!files.length) {
+    con.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div><div class="empty-title">No files yet</div><div class="empty-sub">Upload your first file to get started</div><br/><a href="upload.html" class="btn btn-primary">Upload Files</a></div>`;
+    return;
+  }
+  if(view==='grid') {
+    con.innerHTML = `<div class="file-grid">${files.map(fileCard).join('')}</div>`;
+  } else {
+    con.innerHTML = `<div class="table-wrap"><table class="file-list-table"><thead><tr><th>File</th><th>Size</th><th>Type</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${files.map(fileRow).join('')}</tbody></table></div>`;
+  }
+}
+
+function fileCard(f) {
+  const {emoji} = mimeIcon(f.mime_type);
+  return `<div class="file-card-grid">
+    <div class="file-grid-icon">${emoji}</div>
+    <div class="file-grid-name" title="${esc(f.original_name)}">${esc(f.original_name)}</div>
+    <div class="file-grid-meta">${formatBytes(f.size_bytes)} · ${relativeDate(f.created_at)}</div>
+    <div class="file-grid-actions">
+      <button class="action-btn dl"  onclick="dlFile(${f.id},'${esc(f.original_name)}')" title="Download">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="action-btn del" onclick="confirmDelete(${f.id},'${esc(f.original_name)}')" title="Delete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+function fileRow(f) {
+  const {emoji} = mimeIcon(f.mime_type);
+  return `<tr>
+    <td><div class="file-td-name"><span class="file-td-icon">${emoji}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.original_name)}</span></div></td>
+    <td>${formatBytes(f.size_bytes)}</td>
+    <td><span class="badge badge-cyan">${esc(f.mime_type?.split('/')[0]||'file')}</span></td>
+    <td style="color:var(--text-muted)">${relativeDate(f.created_at)}</td>
+    <td><div style="display:flex;gap:6px">
+      <button class="action-btn dl"  onclick="dlFile(${f.id},'${esc(f.original_name)}')" title="Download">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button class="action-btn del" onclick="confirmDelete(${f.id},'${esc(f.original_name)}')" title="Delete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button>
+    </div></td>
+  </tr>`;
+}
+
+function dlFile(id, name) {
+  const a = document.createElement('a');
+  a.href = `https://api.camhost.space/files/${id}/download?token=${encodeURIComponent(getToken())}`;
+  a.download = name; a.click();
+  showToast('Download started — ' + name, 'info');
+}
+
+function confirmDelete(id, name) {
+  showConfirm('Delete "'+name+'"?', 'This removes the file permanently from Telegram too.', async () => {
+    try {
+      await apiRequest('/files/'+id, { method:'DELETE' });
+      allFiles = allFiles.filter(f=>f.id!==id);
+      renderFiles(getFiltered()); updateStats();
+      showToast('Deleted: '+name, 'success');
+    } catch(e) { showToast('Delete failed: '+e.message,'error'); }
+  });
+}
+
+function bindControls() {
+  document.getElementById('search-input').addEventListener('input', ()=>renderFiles(getFiltered()));
+  document.getElementById('sort-select').addEventListener('change', ()=>renderFiles(getFiltered()));
+  document.getElementById('btn-grid').addEventListener('click', ()=>{ view='grid'; document.getElementById('btn-grid').classList.add('active'); document.getElementById('btn-list').classList.remove('active'); renderFiles(getFiltered()); });
+  document.getElementById('btn-list').addEventListener('click', ()=>{ view='list'; document.getElementById('btn-list').classList.add('active'); document.getElementById('btn-grid').classList.remove('active'); renderFiles(getFiltered()); });
+}
+
+init();
+</script>
+</body>
+</html>

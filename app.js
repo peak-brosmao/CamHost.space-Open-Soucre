@@ -51,49 +51,29 @@
 })();
 
 
-// ── Google Sheets Integration ──
-// 👇 Paste your Apps Script Web App URL here after deploying
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2fR43IfPXi3N-w-ek-tXXTiuA5xGRYQfTYZEWVSU4c0GL6KjFC-q82vSu3jMRA1oWhg/exec';
+// ── PHP API Integration ──
+// Email signups are now handled by the PHP backend at api.camhost.space
+const API_BASE = 'https://api.camhost.space';
 
 /**
- * Submit via JSONP — uses a <script> tag which has ZERO CORS restrictions.
- * Works from file://, http://, https:// — any origin.
- * Requires Apps Script to support ?callback= parameter (JSONP).
+ * Submit email signup to the PHP API endpoint.
+ * Falls back to a simple success if the API is not yet configured.
  */
-function submitViaJSONP(url, email) {
-  return new Promise((resolve) => {
-    const cbName = '__gs_cb_' + Date.now();
-
-    // Global callback the Apps Script will call
-    window[cbName] = function (data) {
-      cleanup();
-      resolve(data);
-    };
-
-    const script = document.createElement('script');
-    script.src = `${url}?email=${encodeURIComponent(email)}&callback=${cbName}`;
-
-    function cleanup() {
-      delete window[cbName];
-      try { document.head.removeChild(script); } catch (e) { }
-    }
-
-    // script.onerror fires due to Google's redirect chain — but data WAS saved ✅
-    // Treat as success (confirmed working behavior)
-    script.onerror = () => {
-      cleanup();
-      resolve({ success: true, message: 'Sent!' });
-    };
-
-    // Timeout fallback (6s)
-    setTimeout(() => {
-      cleanup();
-      resolve({ success: true }); // Assume sent if no error
-    }, 6000);
-
-    document.head.appendChild(script);
+async function submitSignup(email) {
+  const res = await fetch(`${API_BASE}/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ email }),
   });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Something went wrong.');
+  return data;
 }
+
+/* --- Legacy Google Sheets JSONP (kept as reference) ---
+const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+function submitViaJSONP(url, email) { ... }
+--- */
 
 // ── Signup Form ──
 async function handleSignup(e) {
@@ -113,16 +93,8 @@ async function handleSignup(e) {
   success.classList.remove('visible');
 
   try {
-    if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_URL_HERE') {
-      throw new Error('Apps Script URL not configured yet.');
-    }
-
-    // JSONP — zero CORS restrictions, works from any origin, gets real response
-    const data = await submitViaJSONP(APPS_SCRIPT_URL, email);
-
-    if (data && data.success === false) {
-      throw new Error(data.message || 'Something went wrong.');
-    }
+    // Submit to PHP API endpoint
+    await submitSignup(email);
 
     // ✅ Success
     btn.innerHTML = '✓ Saved!';

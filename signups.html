@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Email Signups — CamHost.space</title>
+  <meta name="robots" content="noindex"/>
+  <link rel="stylesheet" href="_app.css"/>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="app">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menu-btn" aria-label="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <nav class="breadcrumb">
+          <a href="index.html" style="color:var(--text-muted);text-decoration:none">Home</a>
+          <span class="breadcrumb-sep">/</span>
+          <span class="breadcrumb-current">Email Signups</span>
+        </nav>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn" id="theme-btn" title="Toggle theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="page">
+      <div class="page-header">
+        <div class="page-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email Signups
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" id="export-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row" style="margin-bottom:20px" id="stats-row">
+        <div class="stat-card"><div class="stat-icon si-cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="stat-value" id="st-total">—</div><div class="stat-label">Total Signups</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="stat-value" id="st-today">—</div><div class="stat-label">Today</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="stat-value" id="st-week">—</div><div class="stat-label">This Week</div></div></div>
+        <div class="stat-card"><div class="stat-icon si-pink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="stat-value" id="st-latest">—</div><div class="stat-label">Latest Signup</div></div></div>
+      </div>
+
+      <!-- Table -->
+      <div id="signups-container"></div>
+    </main>
+  </div>
+</div>
+
+<script src="_app.js"></script>
+<script>
+let signups = [];
+
+async function init() {
+  const user = await requireAuth();
+  renderSidebar('signups');
+  initSidebar('signups');
+  initCanvas();
+  fillUserBadge(user);
+  await loadSignups();
+
+  document.getElementById('export-btn').addEventListener('click', exportCSV);
+}
+
+async function loadSignups() {
+  const con = document.getElementById('signups-container');
+  con.innerHTML = '<div class="skeleton" style="height:300px;border-radius:14px"></div>';
+  try {
+    const res = await apiRequest('/signup');
+    signups = res.signups || [];
+    updateStats();
+    renderTable();
+  } catch(e){
+    con.innerHTML = `<div class="empty-state"><div class="empty-title">Failed to load signups</div><div class="empty-sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function updateStats() {
+  const now   = new Date();
+  const today = now.toISOString().slice(0,10);
+  const weekAgo = new Date(now-7*86400000).toISOString();
+  const todayCount = signups.filter(s=>s.created_at.startsWith(today)).length;
+  const weekCount  = signups.filter(s=>s.created_at >= weekAgo).length;
+  document.getElementById('st-total').textContent  = signups.length;
+  document.getElementById('st-today').textContent  = todayCount;
+  document.getElementById('st-week').textContent   = weekCount;
+  document.getElementById('st-latest').textContent = signups.length ? relativeDate(signups[0].created_at) : '—';
+}
+
+function renderTable() {
+  const con = document.getElementById('signups-container');
+  if(!signups.length){
+    con.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="28" height="28"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div class="empty-title">No signups yet</div><div class="empty-sub">Email signups from your landing page will appear here</div></div>`;
+    return;
+  }
+  con.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Email</th><th>Signed Up</th></tr></thead>
+    <tbody>${signups.map((s,i)=>`<tr>
+      <td style="color:var(--text-muted);font-size:.8rem">${i+1}</td>
+      <td><span style="font-weight:500">${esc(s.email)}</span></td>
+      <td style="color:var(--text-muted)">${relativeDate(s.created_at)}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function exportCSV() {
+  const rows = [['#','Email','Signed Up'], ...signups.map((s,i)=>[i+1,s.email,s.created_at])];
+  const csv  = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'camhost-signups-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  showToast('CSV exported — '+signups.length+' emails','success');
+}
+
+init();
+</script>
+</body>
+</html>

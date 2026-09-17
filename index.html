@@ -1,199 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CamHost.space — Unlimited Private Cloud Storage · Coming Soon</title>
-  <meta name="description" content="CamHost.space is an open-source unlimited private cloud storage platform powered by Telegram. Upload files from your browser — we handle the rest." />
-  <meta property="og:title" content="CamHost.space — Coming Soon" />
-  <meta property="og:description" content="Unlimited private cloud storage powered by Telegram. Open-source & free." />
-  <meta property="og:type" content="website" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>CamHost.space — Unlimited Private Cloud Storage, Powered by Telegram</title>
+  <meta name="description" content="CamHost.space is a free, open-source unlimited cloud storage platform powered by Telegram Bots. Upload any file from your browser — no limits, no fees."/>
+  <meta property="og:title" content="CamHost.space — Unlimited Cloud Storage"/>
+  <meta property="og:description" content="Free unlimited cloud storage powered by Telegram. Open source. No limits. No fees."/>
+  <meta property="og:type" content="website"/>
+  <link rel="stylesheet" href="landing.css"/>
 </head>
 <body>
 
-  <!-- Animated background canvas -->
-  <canvas id="bg-canvas"></canvas>
+<canvas id="bg-canvas"></canvas>
 
-  <!-- Floating particles -->
-  <div class="particles" id="particles"></div>
+<!-- ── Navigation ── -->
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 40 40" fill="none" width="22" height="22">
+        <path d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z" fill="url(#ng)"/>
+        <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95"/>
+        <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8"/>
+        <defs><linearGradient id="ng" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse"><stop stop-color="#00d4ff"/><stop offset="1" stop-color="#0077ff"/></linearGradient></defs>
+      </svg>
+    </div>
+    <span class="nav-brand">CamHost<span class="nav-dot">.space</span></span>
+  </a>
 
-  <!-- Grid overlay -->
-  <div class="grid-overlay"></div>
-
-  <div class="page-wrapper">
-
-    <!-- Header -->
-    <header class="header">
-      <div class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z" fill="url(#cloud-grad)" opacity="0.9"/>
-            <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity="0.95"/>
-            <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity="0.8"/>
-            <defs>
-              <linearGradient id="cloud-grad" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stop-color="#00d4ff"/>
-                <stop offset="100%" stop-color="#0077ff"/>
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <div class="logo-text">
-          <span class="logo-name">CamHost</span><span class="logo-dot">.space</span>
-        </div>
-      </div>
-      <div class="header-actions">
-        <!-- Theme Toggle -->
-        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark/light mode" title="Toggle theme">
-          <!-- Moon icon (shown in dark mode) -->
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <!-- Sun icon (shown in light mode) -->
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        </button>
-        <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener" class="github-btn" id="github-header-link">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-          </svg>
-          Star on GitHub
-        </a>
-      </div>
-    </header>
-
-    <!-- Main Hero -->
-    <main class="hero">
-
-      <!-- Badge -->
-      <div class="badge" id="badge">
-        <span class="badge-dot"></span>
-        Open Source &middot; Free Forever
-      </div>
-
-      <!-- Heading -->
-      <h1 class="hero-title">
-        <span class="title-line">Unlimited Private</span>
-        <span class="title-line gradient-text">Cloud Storage</span>
-        <span class="title-line">Powered by Telegram</span>
-      </h1>
-
-      <p class="hero-desc">
-        Upload anything from your browser. Your files are securely stored via Telegram bots &mdash;
-        completely free, completely private. <strong>No limits. No fees. Open source.</strong>
-      </p>
-
-      <!-- Feature pills -->
-      <div class="feature-pills">
-        <div class="pill" id="pill-unlimited">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"/></svg>
-          Unlimited Storage
-        </div>
-        <div class="pill" id="pill-telegram">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-          Telegram Powered
-        </div>
-        <div class="pill" id="pill-opensource">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-          100% Open Source
-        </div>
-        <div class="pill" id="pill-private">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          Private &amp; Secure
-        </div>
-      </div>
-
-
-      <!-- Email signup -->
-      <div class="signup-section">
-        <p class="signup-label">Get notified when we launch</p>
-        <form class="signup-form" id="signup-form" onsubmit="handleSignup(event)">
-          <input
-            type="email"
-            id="email-input"
-            placeholder="Enter your email address..."
-            class="email-input"
-            required
-            autocomplete="email"
-          />
-          <button type="submit" class="notify-btn" id="notify-btn">
-            <span class="btn-text">Notify Me</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </button>
-        </form>
-        <p class="signup-success" id="signup-success">&#127881; You're on the list! We'll notify you at launch.</p>
-      </div>
-
-      <!-- How it works preview -->
-      <div class="how-it-works">
-        <h2 class="hiw-title">How it works</h2>
-        <div class="hiw-steps">
-          <div class="hiw-step" id="step-1">
-            <div class="step-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </div>
-            <div class="step-num">01</div>
-            <h3 class="step-title">Upload via Browser</h3>
-            <p class="step-desc">Drag &amp; drop or select any file from the beautiful web interface.</p>
-          </div>
-          <div class="hiw-connector">
-            <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="24">
-              <path d="M0 12 Q30 4 60 12" stroke="url(#conn-grad)" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
-              <defs><linearGradient id="conn-grad" x1="0" y1="0" x2="60" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#7b4fff"/></linearGradient></defs>
-            </svg>
-          </div>
-          <div class="hiw-step" id="step-2">
-            <div class="step-icon">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-            </div>
-            <div class="step-num">02</div>
-            <h3 class="step-title">Telegram Bot Stores It</h3>
-            <p class="step-desc">Background service forwards files securely to a Telegram bot/channel.</p>
-          </div>
-          <div class="hiw-connector">
-            <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="24">
-              <path d="M0 12 Q30 4 60 12" stroke="url(#conn-grad2)" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
-              <defs><linearGradient id="conn-grad2" x1="0" y1="0" x2="60" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7b4fff"/><stop offset="100%" stop-color="#ff6b9d"/></linearGradient></defs>
-            </svg>
-          </div>
-          <div class="hiw-step" id="step-3">
-            <div class="step-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </div>
-            <div class="step-num">03</div>
-            <h3 class="step-title">Access Anytime</h3>
-            <p class="step-desc">Retrieve, share, or download your files instantly from the dashboard.</p>
-          </div>
-        </div>
-      </div>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <div class="footer-links">
-        <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener" id="github-footer-link">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-          GitHub
-        </a>
-        <span class="footer-sep">&middot;</span>
-        <span>&copy; 2026 CamHost.space</span>
-        <span class="footer-sep">&middot;</span>
-        <span>Open Source</span>
-      </div>
-      <p class="footer-sub">Built with &hearts; for the community &middot; Powered by Telegram</p>
-      <div class="developer-credit">
-        <span class="dev-label">Developer</span>
-        <a href="https://peakbrosmao.me" target="_blank" rel="noopener" class="dev-name" id="developer-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          PEAK BROSMAO
-        </a>
-      </div>
-    </footer>
-
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how-it-works">How it Works</a>
+    <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener">GitHub</a>
   </div>
 
-  <script src="app.js"></script>
+  <div class="nav-actions">
+    <a href="login.html"    class="nav-btn nav-btn-ghost">Log In</a>
+    <a href="register.html" class="nav-btn nav-btn-primary">
+      Get Started
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </a>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div>
+    <div class="hero-eyebrow">
+      <span class="hero-dot"></span>
+      Open Source · Free Forever · Telegram Powered
+    </div>
+
+    <h1 class="hero-title">
+      Store Everything.<br/>
+      Pay <span class="grad">Nothing.</span>
+    </h1>
+
+    <p class="hero-sub">
+      Unlimited private cloud storage powered by Telegram Bots.
+      Upload any file from your browser — we securely forward it to Telegram's infrastructure.
+      <strong>No limits. No fees. No ads.</strong>
+    </p>
+
+    <div class="hero-ctas">
+      <a href="register.html" class="cta-primary">
+        Start for Free
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener" class="cta-ghost">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+
+    <!-- Floating file cards -->
+    <div class="hero-visual" aria-hidden="true">
+      <div class="float-card fc1">
+        <div class="float-icon">🎬</div>
+        <div>
+          <div class="float-name">demo-video.mp4</div>
+          <div class="float-size">1.4 GB</div>
+          <div class="fc-progress"><div class="fc-fill" style="width:100%"></div></div>
+        </div>
+      </div>
+      <div class="float-card fc2">
+        <div class="float-icon">🖼️</div>
+        <div>
+          <div class="float-name">photo-album.zip</div>
+          <div class="float-size">234 MB • Uploading…</div>
+          <div class="fc-progress"><div class="fc-fill" style="width:72%"></div></div>
+        </div>
+      </div>
+      <div class="float-card fc3">
+        <div class="float-icon">📄</div>
+        <div>
+          <div class="float-name">project-report.pdf</div>
+          <div class="float-size">4.8 MB ✓</div>
+        </div>
+      </div>
+      <div class="float-card fc4">
+        <div class="float-icon">💾</div>
+        <div>
+          <div class="float-name">backup-2026.tar.gz</div>
+          <div class="float-size">890 MB</div>
+        </div>
+      </div>
+      <div class="float-card fc5">
+        <div class="float-icon">🎵</div>
+        <div>
+          <div class="float-name">playlist.mp3</div>
+          <div class="float-size">67 MB ✓</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats Strip ── -->
+<div class="stats-strip">
+  <div class="stat-item"><div class="stat-num">∞</div><div class="stat-lbl">Storage Limit</div></div>
+  <div class="stat-item"><div class="stat-num">2 GB</div><div class="stat-lbl">Max File Size</div></div>
+  <div class="stat-item"><div class="stat-num">$0</div><div class="stat-lbl">Cost Forever</div></div>
+  <div class="stat-item"><div class="stat-num">100%</div><div class="stat-lbl">Open Source</div></div>
+</div>
+
+<!-- ── Features ── -->
+<section class="section" id="features">
+  <div class="section-eyebrow">Why CamHost</div>
+  <h2 class="section-title">Everything you need. Nothing you don't.</h2>
+  <p class="section-sub">Built for developers, creators, and anyone who needs reliable, private file storage without the subscription fees.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feat-icon" style="background:rgba(0,212,255,.1)">♾️</div>
+      <div class="feat-title">Truly Unlimited Storage</div>
+      <div class="feat-desc">No storage caps, ever. Telegram's infrastructure handles everything — we just route your files there securely.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon" style="background:rgba(123,79,255,.1)">🔒</div>
+      <div class="feat-title">Private &amp; Secure</div>
+      <div class="feat-desc">Files go to your private Telegram bot channel. Only you have access. Downloads are proxied through the server to keep your bot token hidden.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon" style="background:rgba(0,201,122,.1)">⚡</div>
+      <div class="feat-title">Fast Uploads</div>
+      <div class="feat-desc">Upload directly from your browser with real-time progress tracking. Supports files up to 2 GB (with Local Bot API server).</div>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon" style="background:rgba(255,107,157,.1)">📂</div>
+      <div class="feat-title">File &amp; Folder Manager</div>
+      <div class="feat-desc">Organize your uploads into folders. Search, sort, rename, move and delete files from a beautiful dashboard interface.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon" style="background:rgba(255,149,0,.1)">🤖</div>
+      <div class="feat-title">Telegram Powered</div>
+      <div class="feat-desc">Leverages Telegram's rock-solid, globally distributed infrastructure. Your files are safe even if our servers go down.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feat-icon" style="background:rgba(0,212,255,.08)">🌐</div>
+      <div class="feat-title">Self Hostable</div>
+      <div class="feat-desc">100% open source. Deploy it on your own server with full control. MIT licensed — fork it, modify it, make it yours.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it Works ── -->
+<section class="section" id="how-it-works" style="background:rgba(255,255,255,.015);border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)">
+  <div class="section-eyebrow">How it Works</div>
+  <h2 class="section-title">Simple by design.</h2>
+  <p class="section-sub">Three steps from upload to anywhere-access.</p>
+
+  <div class="hiw-grid">
+    <div class="hiw-step">
+      <span class="hiw-num">01</span>
+      <div class="hiw-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="hiw-title">Upload from Browser</div>
+      <div class="hiw-desc">Drag &amp; drop any file into the dashboard. No software to install — works entirely in your browser.</div>
+    </div>
+    <div class="hiw-step">
+      <span class="hiw-num">02</span>
+      <div class="hiw-icon">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+      </div>
+      <div class="hiw-title">Telegram Stores It</div>
+      <div class="hiw-desc">Our PHP backend securely forwards your file to a private Telegram channel using the Bot API. The file ID is saved to your account database.</div>
+    </div>
+    <div class="hiw-step">
+      <span class="hiw-num">03</span>
+      <div class="hiw-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <div class="hiw-title">Access Anytime</div>
+      <div class="hiw-desc">Browse, search, organize into folders, and download your files from the dashboard — from any device, anytime.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Open Source CTA ── -->
+<section class="oss-section">
+  <div class="oss-badge">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+    MIT Licensed · Open Source
+  </div>
+  <h2 class="oss-title">Built in the open. For everyone.</h2>
+  <p class="oss-sub">CamHost.space is fully open source. Self-host it, fork it, contribute to it. The code belongs to the community.</p>
+  <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener" class="github-btn">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+    Star on GitHub
+  </a>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <a class="footer-logo" href="#">
+    <span>CamHost<span style="color:#00d4ff">.space</span></span>
+  </a>
+  <div class="footer-links">
+    <a href="login.html">Login</a>
+    <a href="register.html">Register</a>
+    <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://peakbrosmao.me" target="_blank" rel="noopener">Developer</a>
+  </div>
+  <span class="footer-copy">&copy; 2026 CamHost.space · MIT License</span>
+</footer>
+
+<script>
+// Minimal canvas bg for landing
+(function(){
+  const c=document.getElementById('bg-canvas');
+  if(!c)return;
+  const x=c.getContext('2d');
+  let W,H,orbs=[];
+  function resize(){W=c.width=innerWidth;H=c.height=innerHeight}
+  function mk(){
+    const p=['rgba(0,212,255,','rgba(123,79,255,','rgba(0,119,255,','rgba(255,107,157,'];
+    const col=p[Math.floor(Math.random()*p.length)];
+    return{x:Math.random()*W,y:Math.random()*H,r:150+Math.random()*250,
+           a:.03+Math.random()*.05,vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,col};
+  }
+  function init(){orbs=Array.from({length:7},mk)}
+  function draw(){
+    x.clearRect(0,0,W,H);
+    orbs.forEach(o=>{
+      const g=x.createRadialGradient(o.x,o.y,0,o.x,o.y,o.r);
+      g.addColorStop(0,o.col+o.a+')');g.addColorStop(1,o.col+'0)');
+      x.beginPath();x.arc(o.x,o.y,o.r,0,Math.PI*2);x.fillStyle=g;x.fill();
+      o.x+=o.vx;o.y+=o.vy;
+      if(o.x<-o.r)o.x=W+o.r;if(o.x>W+o.r)o.x=-o.r;
+      if(o.y<-o.r)o.y=H+o.r;if(o.y>H+o.r)o.y=-o.r;
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',()=>{resize();init()});
+  resize();init();draw();
+  // Redirect if already logged in
+  const token=localStorage.getItem('ch-token');
+  if(token){
+    fetch('https://api.camhost.space/auth/me',{headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.ok?location.href='/files.html':null).catch(()=>{});
+  }
+})();
+</script>
 </body>
 </html>

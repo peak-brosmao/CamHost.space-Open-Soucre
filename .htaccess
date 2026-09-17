@@ -1,0 +1,41 @@
+# Apache .htaccess — camhost.space FRONTEND
+# Static site: HTML/CSS/JS only.
+# API lives at api.camhost.space (separate server).
+
+Options -Indexes
+
+# ── Security Headers ─────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Allow requests to api.camhost.space from this origin
+    Header set Access-Control-Allow-Origin "https://api.camhost.space"
+</IfModule>
+
+# ── Cache static assets ──────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css                  "access plus 1 week"
+    ExpiresByType application/javascript    "access plus 1 week"
+    ExpiresByType image/png                 "access plus 1 month"
+    ExpiresByType image/webp                "access plus 1 month"
+    ExpiresByType image/svg+xml             "access plus 1 month"
+    ExpiresByType font/woff2                "access plus 1 year"
+</IfModule>
+
+# ── GZIP Compression ─────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript
+</IfModule>
+
+# ── Friendly URLs (SPA-style fallback) ───────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Redirect /dashboard to /dashboard.html if file exists
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^dashboard$ dashboard.html [L]
+</IfModule>
