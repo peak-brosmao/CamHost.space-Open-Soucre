@@ -149,10 +149,14 @@ function seedSettings(PDO $pdo): void {
         'allow_guest_download'     => '1',
         'announcement_banner'      => '',
         'telegram_storage_enabled' => '1',
-        'smtp_host'                => '',
-        'smtp_port'                => '587',
-        'smtp_user'                => '',
+        'smtp_host'                => 'smtp.hostinger.com',
+        'smtp_port'                => '465',
+        'smtp_encryption'          => 'ssl',
+        'smtp_user'                => 'noreply@camhost.space',
+        'smtp_pass'                => '',
         'smtp_from'                => 'noreply@camhost.space',
+        'smtp_from_name'           => 'CamHost.space',
+        'smtp_reply_to'            => 'support@camhost.space',
     ];
 
     $check = $pdo->prepare('SELECT COUNT(*) FROM system_settings WHERE key = ?');

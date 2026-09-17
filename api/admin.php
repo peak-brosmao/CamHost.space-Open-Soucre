@@ -504,32 +504,63 @@ function handleAdminCacheClear(array $admin): void {
 }
 
 /**
- * Test SMTP connection and configuration.
+ * Test SMTP connection and authentication.
  */
 function handleAdminSmtpTest(array $admin): void {
+    require_once __DIR__ . '/mailer.php';
+
     $body = json_decode(file_get_contents('php://input'), true) ?: [];
-    $host = trim($body['smtp_host'] ?? getSystemSetting('smtp_host', ''));
-    $port = (int)($body['smtp_port'] ?? getSystemSetting('smtp_port', '587'));
-    $timeout = 5;
+    $testRecipient = trim($body['test_recipient'] ?? ($admin['email'] ?? 'support@camhost.space'));
 
-    if (empty($host)) {
-        jsonError('SMTP Host is not configured. Please enter a valid SMTP host.', 400);
+    $config = [
+        'host'      => trim($body['smtp_host'] ?? ''),
+        'port'      => (int)($body['smtp_port'] ?? 465),
+        'secure'    => trim($body['smtp_encryption'] ?? 'ssl'),
+        'user'      => trim($body['smtp_user'] ?? 'noreply@camhost.space'),
+        'pass'      => trim($body['smtp_pass'] ?? ''),
+        'from'      => trim($body['smtp_from'] ?? 'noreply@camhost.space'),
+        'from_name' => trim($body['smtp_from_name'] ?? 'CamHost.space'),
+        'reply_to'  => trim($body['smtp_reply_to'] ?? 'support@camhost.space'),
+    ];
+
+    // If any parameter is not provided in body, fallback to saved settings
+    $current = getSmtpConfig();
+    foreach ($config as $k => $v) {
+        if ($v === '' && isset($current[$k])) {
+            $config[$k] = $current[$k];
+        }
     }
 
-    $errno = 0;
-    $errstr = '';
-    $fp = @fsockopen($host, $port, $errno, $errstr, $timeout);
-
-    if (!$fp) {
-        jsonError("Could not connect to {$host}:{$port} - Error: {$errstr} ({$errno})", 502);
+    if (empty($config['host'])) {
+        jsonError('SMTP Host is required. e.g. smtp.hostinger.com', 400);
+    }
+    if (empty($config['user'])) {
+        jsonError('SMTP Username is required. e.g. noreply@camhost.space', 400);
+    }
+    if (empty($config['pass'])) {
+        jsonError('SMTP Password is required to test authentication. Please enter the password for ' . $config['user'], 400);
     }
 
-    $response = fgets($fp, 515);
-    fclose($fp);
+    $testSubject = 'CamHost.space SMTP Test Notification';
+    $testHtml = "<h2>SMTP Configuration Test Successful!</h2>"
+              . "<p>Your outgoing SMTP mail server is correctly configured on <strong>{$config['host']}:{$config['port']}</strong>.</p>"
+              . "<ul>"
+              . "<li><strong>From:</strong> {$config['from']}</li>"
+              . "<li><strong>Reply-To:</strong> {$config['reply_to']}</li>"
+              . "<li><strong>Tested by:</strong> {$admin['email']}</li>"
+              . "<li><strong>Timestamp:</strong> " . date('Y-m-d H:i:s') . "</li>"
+              . "</ul>"
+              . "<p style='color:#00d4ff;'>CamHost.space Cloud Mailer</p>";
 
-    logAudit((int)$admin['id'], 'SMTP_TESTED', 'system', 'smtp', "SMTP server connection verified: {$host}:{$port}");
+    $res = sendSmtpEmail($testRecipient, $testSubject, $testHtml, strip_tags($testHtml), $config);
+
+    if (!$res['sent']) {
+        jsonError($res['error'] ?? 'SMTP test failed', 502, ['diagnostic' => $res]);
+    }
+
+    logAudit((int)$admin['id'], 'SMTP_TESTED', 'system', 'smtp', "SMTP test succeeded. Verified from: {$config['from']} -> {$testRecipient}");
     jsonSuccess([
-        'message' => "Successfully connected to {$host}:{$port}! Server response: " . trim($response),
-        'server_response' => trim($response)
+        'message' => "SMTP connection & authentication verified! Test email dispatched to {$testRecipient}.",
+        'details' => $res
     ]);
 }

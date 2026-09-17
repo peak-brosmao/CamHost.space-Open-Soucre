@@ -100,10 +100,11 @@ define('ALLOWED_ORIGINS', env('ALLOWED_ORIGINS', 'https://camhost.space,http://l
 define('SMTP_HOST',      env('SMTP_HOST', 'smtp.hostinger.com'));
 define('SMTP_PORT',      (int)env('SMTP_PORT', 465));
 define('SMTP_SECURE',    env('SMTP_SECURE', 'ssl'));
-define('SMTP_USER',      env('SMTP_USER', 'support@camhost.space'));
+define('SMTP_USER',      env('SMTP_USER', 'noreply@camhost.space'));
 define('SMTP_PASS',      env('SMTP_PASS', ''));
-define('SMTP_FROM',      env('SMTP_FROM', 'support@camhost.space'));
+define('SMTP_FROM',      env('SMTP_FROM', 'noreply@camhost.space'));
 define('SMTP_FROM_NAME', env('SMTP_FROM_NAME', 'CamHost.space'));
+define('SMTP_REPLY_TO',  env('SMTP_REPLY_TO', 'support@camhost.space'));
 define('FRONTEND_URL',   env('FRONTEND_URL', 'https://camhost.space'));
 
 // ── Global Helper Utilities ──────────────────────────────────────

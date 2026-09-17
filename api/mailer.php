@@ -1,11 +1,49 @@
 <?php
-// ==========================================================
-// CamHost.space — Hostinger SMTP Mailer Engine
-// Sender: support@camhost.space · Host: smtp.hostinger.com
-// Developer: PEAK BROSMAO · peakbrosmao.me
-// ==========================================================
+// =========================================================================
+// CamHost.space — Enterprise SMTP Mailer Engine
+// Sender: noreply@camhost.space · Reply-To: support@camhost.space
+// Host: smtp.hostinger.com · Developer: PEAK BROSMAO · peakbrosmao.me
+// =========================================================================
 
 require_once __DIR__ . '/config.php';
+
+/**
+ * Fetch current effective SMTP configuration.
+ * Precedence: Database system_settings (Admin Panel) > .env / constants > defaults.
+ */
+function getSmtpConfig(): array {
+    $dbSettings = [];
+    try {
+        if (function_exists('db')) {
+            $stmt = db()->query("SELECT key, value FROM system_settings WHERE key LIKE 'smtp_%'");
+            if ($stmt) {
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    $dbSettings[$row['key']] = $row['value'];
+                }
+            }
+        }
+    } catch (Throwable $e) {}
+
+    $host     = !empty($dbSettings['smtp_host']) ? trim($dbSettings['smtp_host']) : (defined('SMTP_HOST') && SMTP_HOST ? SMTP_HOST : env('SMTP_HOST', 'smtp.hostinger.com'));
+    $port     = !empty($dbSettings['smtp_port']) ? (int)$dbSettings['smtp_port'] : (defined('SMTP_PORT') && SMTP_PORT ? (int)SMTP_PORT : (int)env('SMTP_PORT', 465));
+    $secure   = !empty($dbSettings['smtp_encryption']) ? trim($dbSettings['smtp_encryption']) : (defined('SMTP_SECURE') && SMTP_SECURE ? SMTP_SECURE : env('SMTP_SECURE', 'ssl'));
+    $user     = !empty($dbSettings['smtp_user']) ? trim($dbSettings['smtp_user']) : (defined('SMTP_USER') && SMTP_USER ? SMTP_USER : env('SMTP_USER', 'noreply@camhost.space'));
+    $pass     = !empty($dbSettings['smtp_pass']) ? trim($dbSettings['smtp_pass']) : (defined('SMTP_PASS') && SMTP_PASS ? SMTP_PASS : env('SMTP_PASS', ''));
+    $from     = !empty($dbSettings['smtp_from']) ? trim($dbSettings['smtp_from']) : (defined('SMTP_FROM') && SMTP_FROM ? SMTP_FROM : env('SMTP_FROM', 'noreply@camhost.space'));
+    $fromName = !empty($dbSettings['smtp_from_name']) ? trim($dbSettings['smtp_from_name']) : (defined('SMTP_FROM_NAME') && SMTP_FROM_NAME ? SMTP_FROM_NAME : env('SMTP_FROM_NAME', 'CamHost.space'));
+    $replyTo  = !empty($dbSettings['smtp_reply_to']) ? trim($dbSettings['smtp_reply_to']) : (defined('SMTP_REPLY_TO') && SMTP_REPLY_TO ? SMTP_REPLY_TO : env('SMTP_REPLY_TO', 'support@camhost.space'));
+
+    return [
+        'host'      => $host,
+        'port'      => $port,
+        'secure'    => strtolower($secure),
+        'user'      => $user,
+        'pass'      => $pass,
+        'from'      => $from,
+        'from_name' => $fromName,
+        'reply_to'  => $replyTo,
+    ];
+}
 
 /**
  * Dispatch an account verification / activation email.
@@ -72,8 +110,9 @@ function sendActivationEmail(string $recipientEmail, string $activationUrl): arr
 
           <!-- Footer -->
           <tr>
-            <td style="padding: 24px 40px; background-color: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center; font-size: 12px; color: #64748b; line-height: 1.5;">
-              Sent by CamHost.space System (<a href="mailto:support@camhost.space" style="color: #94a3b8; text-decoration: none;">support@camhost.space</a>)<br>
+            <td style="padding: 24px 40px; background-color: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center; font-size: 12px; color: #64748b; line-height: 1.6;">
+              Sent by CamHost.space System Alert (<span style="color: #94a3b8;">noreply@camhost.space</span>)<br>
+              Replies to this email are directed to <a href="mailto:support@camhost.space" style="color: #00d4ff; text-decoration: none;">support@camhost.space</a>.<br>
               If you did not register for an account on CamHost.space, you can safely ignore this email.
             </td>
           </tr>
@@ -90,43 +129,51 @@ HTML;
           . "Please verify your email address by opening the following link in your browser:\n"
           . "{$activationUrl}\n\n"
           . "This link will expire in 24 hours.\n\n"
-          . "CamHost.space Support (support@camhost.space)";
+          . "CamHost.space System Alert (noreply@camhost.space)\n"
+          . "For assistance, reply or contact support@camhost.space";
 
     return sendSmtpEmail($recipientEmail, $subject, $html, $text);
 }
 
 /**
- * Pure PHP SMTP Client connecting to Hostinger SMTP.
+ * Pure PHP SMTP Client connecting to Hostinger or custom SMTP.
  * Default Host: smtp.hostinger.com, Port: 465 (SSL)
  */
-function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $textBody = ''): array {
-    $host   = SMTP_HOST;
-    $port   = SMTP_PORT;
-    $user   = SMTP_USER;
-    $pass   = SMTP_PASS;
-    $from   = SMTP_FROM;
-    $fromName = SMTP_FROM_NAME;
+function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $textBody = '', ?array $overrideConfig = null): array {
+    $cfg = array_merge(getSmtpConfig(), $overrideConfig ?: []);
 
-    // If password is not yet entered in .env, log and return graceful fallback
+    $host     = $cfg['host'];
+    $port     = (int)$cfg['port'];
+    $secure   = strtolower($cfg['secure']);
+    $user     = $cfg['user'];
+    $pass     = $cfg['pass'];
+    $from     = $cfg['from'];
+    $fromName = $cfg['from_name'];
+    $replyTo  = $cfg['reply_to'] ?: 'support@camhost.space';
+
+    // If password is not configured in .env or database
     if (empty($pass)) {
-        error_log('[CamHost Mailer Notice] SMTP_PASS is empty in api/.env. Please configure SMTP_PASS with the password for ' . $user);
-        
-        // Try system mail() as fallback
+        $msg = "SMTP password is not configured. Please enter your SMTP password for '{$user}' in api/.env or in Admin Panel > Settings > SMTP.";
+        error_log("[CamHost Mailer Notice] " . $msg);
+
+        // Try PHP mail() fallback
         $headers  = "MIME-Version: 1.0\r\n";
         $headers .= "Content-type: text/html; charset=UTF-8\r\n";
         $headers .= "From: {$fromName} <{$from}>\r\n";
-        $headers .= "Reply-To: {$from}\r\n";
+        $headers .= "Reply-To: CamHost Support <{$replyTo}>\r\n";
         $headers .= "X-Mailer: CamHost-System/1.0\r\n";
-        
+
         $sent = @mail($to, $subject, $htmlBody, $headers);
         return [
             'sent'          => (bool)$sent,
             'smtp_active'   => false,
-            'message'       => 'SMTP_PASS not configured in .env; fallback mail() called',
+            'error'         => $msg,
+            'message'       => (bool)$sent ? 'Sent via server mail() fallback' : $msg,
         ];
     }
 
-    $socketPrefix = (SMTP_SECURE === 'ssl' || $port === 465) ? 'ssl://' : '';
+    $isSsl = ($secure === 'ssl' || $port === 465);
+    $socketPrefix = $isSsl ? 'ssl://' : 'tcp://';
     $remoteAddress = $socketPrefix . $host . ':' . $port;
 
     $ctx = stream_context_create([
@@ -139,33 +186,46 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
 
     $socket = @stream_socket_client($remoteAddress, $errno, $errstr, 12, STREAM_CLIENT_CONNECT, $ctx);
     if (!$socket) {
-        error_log("[CamHost SMTP Error] Connection failed: {$errstr} ({$errno})");
-        return ['sent' => false, 'error' => "Cannot connect to SMTP server: {$errstr}"];
+        $errorMsg = "Cannot connect to SMTP server ({$remoteAddress}): {$errstr} ({$errno})";
+        error_log("[CamHost SMTP Error] " . $errorMsg);
+        return ['sent' => false, 'error' => $errorMsg];
     }
 
-    stream_set_timeout($socket, 10);
+    stream_set_timeout($socket, 15);
 
-    // Read banner
+    // Read initial 220 banner
     $res = readSmtp($socket);
     if (!str_starts_with($res, '220')) {
         fclose($socket);
-        return ['sent' => false, 'error' => "Unexpected banner: {$res}"];
+        return ['sent' => false, 'error' => "Unexpected banner from SMTP server: {$res}"];
     }
 
+    $heloDomain = parse_url(FRONTEND_URL, PHP_URL_HOST) ?: 'camhost.space';
+
     // EHLO
-    sendCmd($socket, "EHLO camhost.space");
+    sendCmd($socket, "EHLO " . $heloDomain);
     $res = readSmtp($socket);
 
-    // STARTTLS if TLS mode on port 587
-    if ($port === 587 && SMTP_SECURE === 'tls') {
+    // STARTTLS if TLS mode on port 587 or encryption requested
+    if (!$isSsl && ($port === 587 || $secure === 'tls')) {
         sendCmd($socket, "STARTTLS");
         $res = readSmtp($socket);
         if (!str_starts_with($res, '220')) {
             fclose($socket);
             return ['sent' => false, 'error' => "STARTTLS rejected: {$res}"];
         }
-        stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
-        sendCmd($socket, "EHLO camhost.space");
+
+        $cryptoMethod = STREAM_CRYPTO_METHOD_TLS_CLIENT;
+        if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) $cryptoMethod |= STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
+        if (defined('STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT')) $cryptoMethod |= STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT;
+
+        $cryptoOk = stream_socket_enable_crypto($socket, true, $cryptoMethod);
+        if (!$cryptoOk) {
+            fclose($socket);
+            return ['sent' => false, 'error' => 'TLS encryption handshake failed'];
+        }
+
+        sendCmd($socket, "EHLO " . $heloDomain);
         readSmtp($socket);
     }
 
@@ -182,7 +242,7 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
     $res = readSmtp($socket);
     if (!str_starts_with($res, '334')) {
         fclose($socket);
-        return ['sent' => false, 'error' => "Username rejected: {$res}"];
+        return ['sent' => false, 'error' => "SMTP username rejected: {$res}"];
     }
 
     // Send Password
@@ -190,7 +250,7 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
     $res = readSmtp($socket);
     if (!str_starts_with($res, '235')) {
         fclose($socket);
-        return ['sent' => false, 'error' => "SMTP Authentication failed: {$res}"];
+        return ['sent' => false, 'error' => "SMTP Authentication failed for '{$user}': {$res}"];
     }
 
     // MAIL FROM
@@ -198,7 +258,7 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
     $res = readSmtp($socket);
     if (!str_starts_with($res, '250')) {
         fclose($socket);
-        return ['sent' => false, 'error' => "MAIL FROM rejected: {$res}"];
+        return ['sent' => false, 'error' => "MAIL FROM rejected for <{$from}>: {$res}"];
     }
 
     // RCPT TO
@@ -206,7 +266,7 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
     $res = readSmtp($socket);
     if (!str_starts_with($res, '250')) {
         fclose($socket);
-        return ['sent' => false, 'error' => "RCPT TO rejected: {$res}"];
+        return ['sent' => false, 'error' => "RCPT TO rejected for <{$to}>: {$res}"];
     }
 
     // DATA
@@ -217,13 +277,14 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
         return ['sent' => false, 'error' => "DATA rejected: {$res}"];
     }
 
-    // Build MIME message
+    // Build MIME message with From: noreply and Reply-To: support
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $messageId = '<' . time() . '.' . bin2hex(random_bytes(8)) . '@camhost.space>';
     $date = date('r');
 
     $headers  = "Date: {$date}\r\n";
     $headers .= "From: {$fromName} <{$from}>\r\n";
+    $headers .= "Reply-To: CamHost Support <{$replyTo}>\r\n";
     $headers .= "To: <{$to}>\r\n";
     $headers .= "Subject: {$encodedSubject}\r\n";
     $headers .= "Message-ID: {$messageId}\r\n";
@@ -241,8 +302,10 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
 
     $success = str_starts_with($res, '250');
     return [
-        'sent'    => $success,
-        'message' => $success ? 'Verification email successfully sent via Hostinger SMTP.' : "Delivery notice: {$res}",
+        'sent'        => $success,
+        'smtp_active' => true,
+        'message'     => $success ? "Email successfully delivered via SMTP ({$from} -> {$to})." : "Delivery notice: {$res}",
+        'error'       => $success ? null : "Server did not accept message: {$res}",
     ];
 }
 
@@ -262,7 +325,7 @@ function readSmtp($socket): string {
         $line = fgets($socket, 1024);
         if ($line === false) break;
         $response .= $line;
-        // In SMTP, line 4th char is a space when it's the final line of multi-line response (e.g. "250 OK" vs "250-SIZE")
+        // In SMTP, 4th char is a space on the final line of multi-line response (e.g. "250 OK" vs "250-SIZE")
         if (isset($line[3]) && $line[3] === ' ') {
             break;
         }

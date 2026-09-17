@@ -120,9 +120,14 @@ export default function AdminSettings() {
         body: {
           smtp_host: settings.smtp_host,
           smtp_port: settings.smtp_port,
+          smtp_encryption: settings.smtp_encryption,
+          smtp_user: settings.smtp_user,
+          smtp_pass: settings.smtp_pass,
+          smtp_from: settings.smtp_from,
+          smtp_reply_to: settings.smtp_reply_to,
         }
       });
-      showToast(res.message || 'SMTP Connection successful!', 'success');
+      showToast(res.message || 'SMTP Connection successful! Test email dispatched.', 'success');
     } catch (err) {
       showToast(err.message || 'SMTP Test failed: Could not connect to mail server', 'error');
     } finally {
@@ -392,11 +397,14 @@ export default function AdminSettings() {
             <Field label="SMTP Password">
               <input type="password" className="input-field" value={settings.smtp_pass || ''} onChange={e => set('smtp_pass', e.target.value)} placeholder="Mail password or App Password" />
             </Field>
-            <Field label="Sender Email Address">
+            <Field label="Sender Email Address (From)" hint="Must be a valid mailbox on your domain (e.g. noreply@camhost.space)">
               <input type="email" className="input-field" value={settings.smtp_from || 'noreply@camhost.space'} onChange={e => set('smtp_from', e.target.value)} />
             </Field>
+            <Field label="Reply-To Email Address" hint="Where user replies will be directed (e.g. support@camhost.space)">
+              <input type="email" className="input-field" value={settings.smtp_reply_to || 'support@camhost.space'} onChange={e => set('smtp_reply_to', e.target.value)} />
+            </Field>
             <Field label="Sender Display Name">
-              <input type="text" className="input-field" value={settings.smtp_from_name || 'CamHost.space Cloud'} onChange={e => set('smtp_from_name', e.target.value)} />
+              <input type="text" className="input-field" value={settings.smtp_from_name || 'CamHost.space'} onChange={e => set('smtp_from_name', e.target.value)} />
             </Field>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
