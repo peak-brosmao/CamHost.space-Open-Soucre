@@ -351,10 +351,17 @@ function proxyDownload(string $url, string $name, string $mime): void {
     // Disable output buffering to stream large files efficiently
     while (ob_get_level()) ob_end_clean();
 
-    header('Content-Type: ' . $mime);
-    header('Content-Disposition: attachment; filename="' . addslashes($name) . '"');
-    header('X-Accel-Buffering: no');   // Disable nginx buffering
-    header('Cache-Control: no-cache');
+    $safeName = basename($name);
+    if (empty($safeName)) $safeName = 'download';
+    $asciiName = preg_replace('/[^\x20-\x7e]/', '', str_replace(['"', ';', '\\', '/'], '', $safeName));
+    if (empty($asciiName)) $asciiName = 'download';
+    $encodedName = rawurlencode($safeName);
+
+    header('Content-Type: ' . ($mime ?: 'application/octet-stream'));
+    header('Content-Disposition: attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . $encodedName);
+    header('X-Accel-Buffering: no');   // Disable nginx/cPanel buffering
+    header('Cache-Control: private, no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [

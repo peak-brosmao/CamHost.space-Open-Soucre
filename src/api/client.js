@@ -53,25 +53,27 @@ export async function apiRequest(path, opts = {}) {
 }
 
 export async function downloadFile(path, fileName, token = null) {
-  const headers = {};
   const t = token || getToken();
-  if (t) headers['Authorization'] = 'Bearer ' + t;
-
-  const targetUrl = path.startsWith('http') ? path : API_BASE + path;
-  const res = await fetch(targetUrl, { headers });
-  if (!res.ok) {
-    throw new Error(`Download failed (${res.status})`);
+  let targetUrl = path.startsWith('http') ? path : API_BASE + path;
+  if (t && !targetUrl.includes('token=')) {
+    targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(t);
   }
 
-  const blob = await res.blob();
-  const blobUrl = window.URL.createObjectURL(blob);
+  // Use direct native browser download to avoid Blob URL UUID naming issues in Chromium/Brave
+  // and stream directly to disk with proper server Content-Disposition filename
   const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = fileName || 'download';
+  a.style.display = 'none';
+  a.href = targetUrl;
+  if (fileName) {
+    a.setAttribute('download', fileName);
+  }
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  setTimeout(() => window.URL.revokeObjectURL(blobUrl), 15000);
+  setTimeout(() => {
+    try {
+      document.body.removeChild(a);
+    } catch (e) {}
+  }, 3000);
 }
 
 export function uploadWithProgress(path, formData, onProgress) {
