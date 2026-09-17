@@ -1764,8 +1764,8 @@ tbody tr:hover td {
   padding: 6px 9px;
   font-size: 0.82rem;
   font-weight: 500;
-  text-transform: none;
-  letter-spacing: normal;
+  text-transform: none !important;
+  letter-spacing: normal !important;
   color: var(--adm-nav-text);
   cursor: pointer;
   border-radius: 7px;
@@ -1792,6 +1792,8 @@ tbody tr:hover td {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 .admin-nav-group-items { padding-left: 2px; margin-top: 1px; }
 
@@ -1816,6 +1818,8 @@ tbody tr:hover td {
   font-family: var(--font);
   width: 100%;
   background: none;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 .admin-nav-item:hover {
   background: var(--adm-elevated);
@@ -1838,6 +1842,8 @@ tbody tr:hover td {
   text-overflow: ellipsis;
   flex: 1;
   text-align: left;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
 
 .admin-nav-item.sub {
@@ -1968,18 +1974,6 @@ tbody tr:hover td {
   background: var(--adm-elevated-hover);
   border-color: var(--adm-border-hi);
   color: var(--adm-indigo);
-}
-.admin-sidebar-mode-btn svg { color: var(--adm-indigo); }
-
-.admin-logout-btn {
-  background: var(--adm-elevated);
-  border: 1px solid var(--adm-border);
-  color: var(--adm-muted);
-}
-.admin-logout-btn:hover {
-  background: var(--adm-red-dim);
-  border-color: var(--adm-red);
-  color: var(--adm-red);
 }
 .admin-sidebar-mode-btn svg { color: var(--adm-indigo); }
 

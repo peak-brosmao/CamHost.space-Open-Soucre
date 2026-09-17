@@ -185,9 +185,10 @@ function NavEntry({ item, onClose, location }) {
         end={item.to === '/admin/dashboard'}
         className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}
         onClick={onClose}
+        style={{ textTransform: 'none' }}
       >
         {item.icon && <span className="admin-nav-icon">{item.icon}</span>}
-        <span className="admin-nav-text-label">{item.label}</span>
+        <span className="admin-nav-text-label" style={{ textTransform: 'none', letterSpacing: 'normal' }}>{item.label}</span>
         {item.badge && <span className="admin-nav-badge">{item.badge}</span>}
       </NavLink>
     );
@@ -211,9 +212,10 @@ function NavEntry({ item, onClose, location }) {
         type="button"
         className={`admin-nav-group-header ${isChildActive ? 'child-active' : ''}`}
         onClick={() => setOpen(!open)}
+        style={{ textTransform: 'none', letterSpacing: 'normal' }}
       >
         <span className="admin-nav-icon">{item.icon}</span>
-        <span className="admin-nav-group-label">{item.label}</span>
+        <span className="admin-nav-group-label" style={{ textTransform: 'none', letterSpacing: 'normal' }}>{item.label}</span>
         {item.badge && <span className="admin-nav-badge">{item.badge}</span>}
         <IconChevron open={open} />
       </button>
@@ -226,8 +228,9 @@ function NavEntry({ item, onClose, location }) {
               end={sub.to.split('/').length <= 3}
               className={({ isActive }) => `admin-nav-item sub ${isActive ? 'active' : ''}`}
               onClick={onClose}
+              style={{ textTransform: 'none' }}
             >
-              <span className="admin-nav-text-label">{sub.label}</span>
+              <span className="admin-nav-text-label" style={{ textTransform: 'none', letterSpacing: 'normal' }}>{sub.label}</span>
             </NavLink>
           ))}
         </div>

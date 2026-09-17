@@ -9,8 +9,14 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="icon" type="image/png" href="/logo.png" />
-  <script type="module" crossorigin src="/assets/index-DMvFKqxB.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DRyIEFG0.css">
+  <script>
+    try {
+      var t = localStorage.getItem('ch-theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <script type="module" crossorigin src="/assets/index-D-2OhwXt.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-gU3Gm7o7.css">
 </head>
 <body>
   <div id="root"></div>
