@@ -1,7 +1,7 @@
 // =============================================
 // CamHost.space — Coming Soon JS
 // Dark/Light Mode + Countdown + Animations
-// Developer: PEAK BROSMAO
+// Developer: PEAK BROSMAO · peakbrosmao.me
 // =============================================
 
 // ── Theme Toggle ──
