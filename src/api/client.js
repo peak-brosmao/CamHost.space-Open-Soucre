@@ -3,7 +3,7 @@
 // Developer: PEAK BROSMAO · peakbrosmao.me
 // =============================================
 
-export const API_BASE = 'https://api.camhost.space';
+export const API_BASE = import.meta.env.VITE_API_URL || 'https://api.camhost.space';
 
 export function getToken() {
   return localStorage.getItem('ch-token');
