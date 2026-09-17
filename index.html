@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CamHost.space — Unlimited Private Cloud Storage · Coming Soon</title>
+  <meta name="description" content="CamHost.space is an open-source unlimited private cloud storage platform powered by Telegram. Upload files from your browser — we handle the rest." />
+  <meta property="og:title" content="CamHost.space — Coming Soon" />
+  <meta property="og:description" content="Unlimited private cloud storage powered by Telegram. Open-source & free." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Animated background canvas -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Floating particles -->
+  <div class="particles" id="particles"></div>
+
+  <!-- Grid overlay -->
+  <div class="grid-overlay"></div>
+
+  <div class="page-wrapper">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z" fill="url(#cloud-grad)" opacity="0.9"/>
+            <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity="0.95"/>
+            <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity="0.8"/>
+            <defs>
+              <linearGradient id="cloud-grad" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#00d4ff"/>
+                <stop offset="100%" stop-color="#0077ff"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-name">CamHost</span><span class="logo-dot">.space</span>
+        </div>
+      </div>
+      <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener" class="github-btn" id="github-header-link">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+        </svg>
+        Star on GitHub
+      </a>
+    </header>
+
+    <!-- Main Hero -->
+    <main class="hero">
+
+      <!-- Badge -->
+      <div class="badge" id="badge">
+        <span class="badge-dot"></span>
+        Open Source &middot; Free Forever
+      </div>
+
+      <!-- Heading -->
+      <h1 class="hero-title">
+        <span class="title-line">Unlimited Private</span>
+        <span class="title-line gradient-text">Cloud Storage</span>
+        <span class="title-line">Powered by Telegram</span>
+      </h1>
+
+      <p class="hero-desc">
+        Upload anything from your browser. Your files are securely stored via Telegram bots &mdash;
+        completely free, completely private. <strong>No limits. No fees. Open source.</strong>
+      </p>
+
+      <!-- Feature pills -->
+      <div class="feature-pills">
+        <div class="pill" id="pill-unlimited">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"/></svg>
+          Unlimited Storage
+        </div>
+        <div class="pill" id="pill-telegram">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          Telegram Powered
+        </div>
+        <div class="pill" id="pill-opensource">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          100% Open Source
+        </div>
+        <div class="pill" id="pill-private">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Private &amp; Secure
+        </div>
+      </div>
+
+      <!-- Countdown -->
+      <div class="countdown-section">
+        <p class="countdown-label">Launching in</p>
+        <div class="countdown" id="countdown">
+          <div class="count-block">
+            <div class="count-num" id="cd-days">00</div>
+            <div class="count-unit">Days</div>
+          </div>
+          <div class="count-sep">:</div>
+          <div class="count-block">
+            <div class="count-num" id="cd-hours">00</div>
+            <div class="count-unit">Hours</div>
+          </div>
+          <div class="count-sep">:</div>
+          <div class="count-block">
+            <div class="count-num" id="cd-minutes">00</div>
+            <div class="count-unit">Minutes</div>
+          </div>
+          <div class="count-sep">:</div>
+          <div class="count-block">
+            <div class="count-num" id="cd-seconds">00</div>
+            <div class="count-unit">Seconds</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email signup -->
+      <div class="signup-section">
+        <p class="signup-label">Get notified when we launch</p>
+        <form class="signup-form" id="signup-form" onsubmit="handleSignup(event)">
+          <input
+            type="email"
+            id="email-input"
+            placeholder="Enter your email address..."
+            class="email-input"
+            required
+            autocomplete="email"
+          />
+          <button type="submit" class="notify-btn" id="notify-btn">
+            <span class="btn-text">Notify Me</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </form>
+        <p class="signup-success" id="signup-success">&#127881; You're on the list! We'll notify you at launch.</p>
+      </div>
+
+      <!-- How it works preview -->
+      <div class="how-it-works">
+        <h2 class="hiw-title">How it works</h2>
+        <div class="hiw-steps">
+          <div class="hiw-step" id="step-1">
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="step-num">01</div>
+            <h3 class="step-title">Upload via Browser</h3>
+            <p class="step-desc">Drag &amp; drop or select any file from the beautiful web interface.</p>
+          </div>
+          <div class="hiw-connector">
+            <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="24">
+              <path d="M0 12 Q30 4 60 12" stroke="url(#conn-grad)" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
+              <defs><linearGradient id="conn-grad" x1="0" y1="0" x2="60" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#7b4fff"/></linearGradient></defs>
+            </svg>
+          </div>
+          <div class="hiw-step" id="step-2">
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+            </div>
+            <div class="step-num">02</div>
+            <h3 class="step-title">Telegram Bot Stores It</h3>
+            <p class="step-desc">Background service forwards files securely to a Telegram bot/channel.</p>
+          </div>
+          <div class="hiw-connector">
+            <svg viewBox="0 0 60 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="24">
+              <path d="M0 12 Q30 4 60 12" stroke="url(#conn-grad2)" stroke-width="1.5" stroke-dasharray="4 3" fill="none"/>
+              <defs><linearGradient id="conn-grad2" x1="0" y1="0" x2="60" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7b4fff"/><stop offset="100%" stop-color="#ff6b9d"/></linearGradient></defs>
+            </svg>
+          </div>
+          <div class="hiw-step" id="step-3">
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="step-num">03</div>
+            <h3 class="step-title">Access Anytime</h3>
+            <p class="step-desc">Retrieve, share, or download your files instantly from the dashboard.</p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-links">
+        <a href="https://github.com/peak-brosmao/CamHost.space-Open-Soucre" target="_blank" rel="noopener" id="github-footer-link">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+        <span class="footer-sep">&middot;</span>
+        <span>&copy; 2026 CamHost.space</span>
+        <span class="footer-sep">&middot;</span>
+        <span>Open Source</span>
+      </div>
+      <p class="footer-sub">Built with &hearts; for the community &middot; Powered by Telegram</p>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
