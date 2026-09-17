@@ -140,8 +140,8 @@ try {
         exit;
     }
 
-    // ── Upload route ──
-    if ($rawPath === '/upload' && $method === 'POST') {
+    // ── Upload routes — /upload or /files (POST) ──
+    if (($rawPath === '/upload' || $rawPath === '/files') && $method === 'POST') {
         require __DIR__ . '/upload.php';
         handleUpload();
         exit;

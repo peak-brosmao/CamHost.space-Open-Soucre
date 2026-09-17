@@ -99,7 +99,7 @@ export default function UploadPage() {
       }
 
       try {
-        await uploadWithProgress('/files', formData, (percent) => {
+        await uploadWithProgress('/upload', formData, (percent) => {
           setFileQueue((prev) =>
             prev.map((it) => (it.id === item.id ? { ...it, progress: percent } : it))
           );
