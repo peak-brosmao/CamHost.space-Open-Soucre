@@ -166,6 +166,19 @@ function enforceRateLimit(string $action, int $maxHits, int $windowSeconds, ?str
 }
 
 /**
+ * Clear rate limit records for a given action and IP (e.g. after successful auth).
+ */
+function clearRateLimit(string $action, ?string $customIp = null): void {
+    $ip = $customIp ?: getClientIp();
+    try {
+        $stmt = db()->prepare('DELETE FROM rate_limits WHERE ip_address = ? AND action = ?');
+        $stmt->execute([$ip, $action]);
+    } catch (Exception $e) {
+        // ignore
+    }
+}
+
+/**
  * Constant-time string comparison to prevent timing attacks on tokens.
  */
 function secureTokenCompare(string $known, string $user): bool {

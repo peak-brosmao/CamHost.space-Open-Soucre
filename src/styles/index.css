@@ -3141,5 +3141,109 @@ tbody tr:hover td {
   background: rgba(6, 182, 212, 0.06) !important;
 }
 
+/* ── Explorer & Drive Controls (folder-chip, search-box, view-toggle) ── */
+.folder-chip {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  font-family: inherit;
+  user-select: none;
+}
+
+.folder-chip:hover {
+  border-color: rgba(0, 212, 255, 0.4);
+  color: var(--text);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.folder-chip.active {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.18), rgba(0, 119, 255, 0.18));
+  border-color: var(--cyan);
+  color: #00d4ff;
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-box:focus-within {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+}
+
+.search-box svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  width: 100%;
+}
+
+.search-box input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.view-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  outline: none;
+}
+
+.view-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.view-btn.active {
+  background: rgba(0, 212, 255, 0.15);
+  color: var(--cyan);
+}
+
 
 

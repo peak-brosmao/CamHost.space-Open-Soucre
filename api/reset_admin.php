@@ -65,6 +65,11 @@ try {
         $targetEmail = $adminEmail;
     }
 
+    // Flush rate_limits so admin can immediately log in without being rate limited
+    try {
+        $pdo->exec('DELETE FROM rate_limits');
+    } catch (Exception $e) {}
+
     if ($isCli) {
         echo "====================================================\n";
         echo "SUCCESS: Admin password has been updated!\n";

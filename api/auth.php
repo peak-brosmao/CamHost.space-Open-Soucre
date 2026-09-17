@@ -174,7 +174,7 @@ function buildUserProfile(array $user): array {
  * Protected against brute-force (max 5 failed attempts per 15 min).
  */
 function handleLogin(): void {
-    enforceRateLimit('login', 5, 900);
+    enforceRateLimit('login', 30, 300);
 
     $body = json_decode(file_get_contents('php://input'), true);
     $email    = trim($body['email']    ?? '');
@@ -191,6 +191,9 @@ function handleLogin(): void {
     if (!$user || !password_verify($password, $user['password'])) {
         jsonError('Invalid email or password', 401);
     }
+
+    // Clear rate limit immediately on successful password verification
+    clearRateLimit('login');
 
     // Check if account is suspended
     if (!empty($user['is_banned'])) {
