@@ -143,7 +143,7 @@ function seedSettings(PDO $pdo): void {
         'maintenance_mode'         => '0',
         'maintenance_message'      => 'CamHost.space is currently undergoing scheduled maintenance. We will be back online shortly.',
         'max_upload_size_mb'       => '2000',
-        'allowed_extensions'       => 'zip,rar,tar,gz,7z,pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,webp,mp4,mkv,mp3,wav,txt,json,csv',
+        'allowed_extensions'       => 'zip,rar,tar,gz,7z,pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg,gif,webp,mp4,mkv,mp3,wav,txt,json,csv,exe,msi,apk,dmg,iso',
         'default_storage_quota_mb' => '10240',
         'allow_guest_download'     => '1',
         'announcement_banner'      => '',

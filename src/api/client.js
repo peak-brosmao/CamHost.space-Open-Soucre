@@ -136,6 +136,9 @@ export function mimeInfo(mime = '') {
   if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar') || mime.includes('7z')) {
     return { color: '#ffab2e', label: 'ZIP', bg: 'rgba(255,171,46,.12)' };
   }
+  if (mime.includes('dosexec') || mime.includes('x-msdownload') || mime.includes('exe')) {
+    return { color: '#00d4ff', label: 'EXE', bg: 'rgba(0,212,255,.12)' };
+  }
   if (mime.includes('word') || mime.includes('document')) return { color: '#0077ff', label: 'DOC', bg: 'rgba(0,119,255,.12)' };
   if (mime.includes('text') || mime.includes('json') || mime.includes('javascript')) return { color: '#a0aec0', label: 'TXT', bg: 'rgba(160,174,192,.12)' };
   return { color: '#7b4fff', label: 'FILE', bg: 'rgba(123,79,255,.12)' };

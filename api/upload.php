@@ -49,11 +49,11 @@ function handleUpload(): void {
 
     $originalName = basename($f['name']);
 
-    // Block dangerous server-executable extensions
+    // Block dangerous server-executable scripts (prevent server-side web shells)
     $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-    $dangerousExts = ['php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'sh', 'bash', 'bat', 'cmd', 'exe', 'dll', 'com', 'htaccess', 'vbs'];
+    $dangerousExts = ['php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'htaccess', 'htpasswd'];
     if (in_array($ext, $dangerousExts, true)) {
-        jsonError('Security restriction: Executable scripts or system files cannot be uploaded.', 400);
+        jsonError('Security restriction: Server scripts (.php, .htaccess) cannot be uploaded.', 400);
     }
     $mimeType     = mime_content_type($f['tmp_name']) ?: 'application/octet-stream';
     $sizeBytes    = $f['size'];
