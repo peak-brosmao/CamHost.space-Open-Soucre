@@ -6,7 +6,7 @@
 
 // ── Theme Toggle ──
 (function initTheme() {
-  const btn  = document.getElementById('theme-toggle');
+  const btn = document.getElementById('theme-toggle');
   const root = document.documentElement;
 
   // Determine initial theme: saved preference → system preference → dark
@@ -35,7 +35,7 @@
 
   btn.addEventListener('click', () => {
     const current = root.getAttribute('data-theme') || 'dark';
-    const next    = current === 'dark' ? 'light' : 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
 
     // Spin animation
     btn.classList.remove('spinning');
@@ -58,17 +58,17 @@ function pad(n) { return String(n).padStart(2, '0'); }
 let prevVals = { days: -1, hours: -1, minutes: -1, seconds: -1 };
 
 function updateCountdown() {
-  const now  = new Date();
+  const now = new Date();
   const diff = Math.max(0, LAUNCH_DATE - now);
 
-  const days    = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours   = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
   const fields = [
-    { id: 'cd-days',    val: days,    key: 'days' },
-    { id: 'cd-hours',   val: hours,   key: 'hours' },
+    { id: 'cd-days', val: days, key: 'days' },
+    { id: 'cd-hours', val: hours, key: 'hours' },
     { id: 'cd-minutes', val: minutes, key: 'minutes' },
     { id: 'cd-seconds', val: seconds, key: 'seconds' },
   ];
@@ -98,33 +98,50 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2fR43IfPXi3N-
  * This bypasses ALL CORS restrictions — works from file://, http://, https://.
  * Form submissions are never blocked by browser CORS policies.
  */
-function submitViaIframe(url) {
+function submitViaIframe(url, email) {
   return new Promise((resolve) => {
     const frameName = 'gs-frame-' + Date.now();
 
     // Create hidden iframe
     const iframe = document.createElement('iframe');
-    iframe.name  = frameName;
+    iframe.name = frameName;
     iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
     document.body.appendChild(iframe);
 
     // Create hidden GET form targeting the iframe
+    // ⚠️ IMPORTANT: email must be a form INPUT FIELD, not in the action URL.
+    // GET form submissions REPLACE the action query string with form fields.
     const hiddenForm = document.createElement('form');
     hiddenForm.method = 'GET';
-    hiddenForm.action = url;
+    hiddenForm.action = url;           // Base URL — no query string here
     hiddenForm.target = frameName;
     hiddenForm.style.display = 'none';
+
+    // Add email as hidden input field
+    const emailField = document.createElement('input');
+    emailField.type = 'hidden';
+    emailField.name = 'email';
+    emailField.value = email;
+    hiddenForm.appendChild(emailField);
+
+    // Add cache-busting timestamp
+    const tsField = document.createElement('input');
+    tsField.type = 'hidden';
+    tsField.name = 't';
+    tsField.value = Date.now();
+    hiddenForm.appendChild(tsField);
+
     document.body.appendChild(hiddenForm);
 
     // Cleanup after load or timeout
     function cleanup() {
-      try { document.body.removeChild(iframe); } catch(e) {}
-      try { document.body.removeChild(hiddenForm); } catch(e) {}
+      try { document.body.removeChild(iframe); } catch (e) { }
+      try { document.body.removeChild(hiddenForm); } catch (e) { }
       resolve();
     }
 
     iframe.onload = cleanup;
-    setTimeout(cleanup, 6000); // fallback — resolve after 6s
+    setTimeout(cleanup, 6000);
 
     hiddenForm.submit();
   });
@@ -134,12 +151,12 @@ function submitViaIframe(url) {
 async function handleSignup(e) {
   e.preventDefault();
 
-  const form      = document.getElementById('signup-form');
-  const success   = document.getElementById('signup-success');
-  const errorMsg  = document.getElementById('signup-error');
-  const btn       = document.getElementById('notify-btn');
+  const form = document.getElementById('signup-form');
+  const success = document.getElementById('signup-success');
+  const errorMsg = document.getElementById('signup-error');
+  const btn = document.getElementById('notify-btn');
   const emailInput = document.getElementById('email-input');
-  const email     = emailInput.value.trim();
+  const email = emailInput.value.trim();
 
   // Loading state
   btn.disabled = true;
@@ -155,7 +172,8 @@ async function handleSignup(e) {
     }
 
     // Hidden iframe + form submission — zero CORS restrictions, works from file://
-    await submitViaIframe(`${APPS_SCRIPT_URL}?email=${encodeURIComponent(email)}&t=${Date.now()}`);
+    // Email is passed as a hidden input field (not in URL) to avoid GET form stripping query strings
+    await submitViaIframe(APPS_SCRIPT_URL, email);
 
     // ✅ Success
     btn.innerHTML = '✓ Saved!';
@@ -198,7 +216,7 @@ async function handleSignup(e) {
   let W, H, orbs = [];
 
   function resize() {
-    W = canvas.width  = window.innerWidth;
+    W = canvas.width = window.innerWidth;
     H = canvas.height = window.innerHeight;
   }
 
@@ -207,7 +225,7 @@ async function handleSignup(e) {
   }
 
   function makeOrb() {
-    const darkColors  = ['rgba(0,212,255,', 'rgba(123,79,255,', 'rgba(0,119,255,', 'rgba(255,107,157,'];
+    const darkColors = ['rgba(0,212,255,', 'rgba(123,79,255,', 'rgba(0,119,255,', 'rgba(255,107,157,'];
     const lightColors = ['rgba(0,150,255,', 'rgba(100,50,220,', 'rgba(0,100,255,', 'rgba(200,50,120,'];
     const palette = isLight() ? lightColors : darkColors;
     const color = palette[Math.floor(Math.random() * palette.length)];
@@ -271,12 +289,12 @@ async function handleSignup(e) {
   const colors = ['#00d4ff', '#7b4fff', '#0077ff', '#ff6b9d', '#ffffff'];
 
   for (let i = 0; i < 28; i++) {
-    const p     = document.createElement('div');
+    const p = document.createElement('div');
     p.classList.add('particle');
-    const size  = 2 + Math.random() * 4;
+    const size = 2 + Math.random() * 4;
     const color = colors[Math.floor(Math.random() * colors.length)];
-    const left  = Math.random() * 100;
-    const dur   = 8 + Math.random() * 14;
+    const left = Math.random() * 100;
+    const dur = 8 + Math.random() * 14;
     const delay = Math.random() * 12;
 
     p.style.cssText = `
@@ -308,7 +326,7 @@ async function handleSignup(e) {
   }, { threshold: 0.15 });
 
   els.forEach((el, i) => {
-    el.style.opacity   = '0';
+    el.style.opacity = '0';
     el.style.transform = 'translateY(20px)';
     el.style.transition = `opacity 0.6s ease ${i * 0.07}s, transform 0.6s ease ${i * 0.07}s, border-color 0.3s ease, box-shadow 0.3s ease, background 0.45s ease`;
     obs.observe(el);
