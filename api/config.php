@@ -106,3 +106,12 @@ define('SMTP_FROM',      env('SMTP_FROM', 'support@camhost.space'));
 define('SMTP_FROM_NAME', env('SMTP_FROM_NAME', 'CamHost.space'));
 define('FRONTEND_URL',   env('FRONTEND_URL', 'https://camhost.space'));
 
+// ── Global Helper Utilities ──────────────────────────────────────
+if (!function_exists('formatBytes')) {
+    function formatBytes(int $bytes): string {
+        if ($bytes >= 1073741824) return round($bytes / 1073741824, 2) . ' GB';
+        if ($bytes >= 1048576)    return round($bytes / 1048576,    2) . ' MB';
+        if ($bytes >= 1024)       return round($bytes / 1024,       2) . ' KB';
+        return $bytes . ' B';
+    }
+}

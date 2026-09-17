@@ -14,8 +14,10 @@ import {
   downloadFile,
   uploadWithProgress,
 } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function FilesPage() {
+  const { refreshUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [files, setFiles] = useState([]);
   const [folders, setFolders] = useState([]);
@@ -383,6 +385,7 @@ export default function FilesPage() {
       showToast('File deleted successfully', 'success');
       setDeleteModal({ isOpen: false, file: null, loading: false });
       loadFiles(true);
+      refreshUser();
     } catch (err) {
       showToast(err.message || 'Delete failed', 'error');
       setDeleteModal((prev) => ({ ...prev, loading: false }));
@@ -429,6 +432,7 @@ export default function FilesPage() {
       showToast(`${file.name} uploaded successfully!`, 'success');
       loadFiles(true);
       loadFolders();
+      refreshUser();
     } catch (err) {
       showToast(err.message || 'Upload failed', 'error');
     } finally {

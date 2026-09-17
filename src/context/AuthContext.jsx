@@ -17,19 +17,50 @@ export function AuthProvider({ children }) {
       }
       try {
         const res = await apiRequest('/auth/me');
-        setUserState(res);
-        setUser(res);
-      } catch {
-        setToken(null);
-        setUser(null);
-        setUserState(null);
-        setTokenState(null);
+        if (res) {
+          setUserState(res);
+          setUser(res);
+        }
+      } catch (err) {
+        // Only clear credentials if explicitly unauthorized or token expired/invalid/suspended
+        // Do NOT log out on network disconnect or transient 500 errors
+        const isAuthError =
+          err?.status === 401 ||
+          err?.status === 403 ||
+          err?.message?.toLowerCase().includes('unauthorized') ||
+          err?.message?.toLowerCase().includes('token expired') ||
+          err?.message?.toLowerCase().includes('invalid token') ||
+          err?.message?.toLowerCase().includes('suspended') ||
+          err?.data?.banned;
+
+        if (isAuthError) {
+          setToken(null);
+          setUser(null);
+          setUserState(null);
+          setTokenState(null);
+        }
       } finally {
         setLoading(false);
       }
     }
     verifyAuth();
   }, []);
+
+  const refreshUser = async () => {
+    const savedToken = getToken();
+    if (!savedToken) return null;
+    try {
+      const res = await apiRequest('/auth/me');
+      if (res) {
+        setUserState(res);
+        setUser(res);
+        return res;
+      }
+    } catch {
+      // transient network or server error, retain existing user state
+    }
+    return null;
+  };
 
   const login = async (email, password) => {
     const res = await apiRequest('/auth/login', {
@@ -79,7 +110,7 @@ export function AuthProvider({ children }) {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile, isAdmin }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateProfile, refreshUser, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../context/AuthContext';
 import { apiRequest, uploadWithProgress, formatBytes, mimeInfo } from '../api/client';
 
 export default function UploadPage() {
+  const { refreshUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [folders, setFolders] = useState([]);
   const [selectedFolderId, setSelectedFolderId] = useState('');
@@ -120,6 +122,7 @@ export default function UploadPage() {
 
     setUploading(false);
     setAllDone(true);
+    refreshUser();
     showToast('Upload process completed!', 'success');
   };
 

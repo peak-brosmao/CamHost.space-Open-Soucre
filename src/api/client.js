@@ -45,8 +45,11 @@ export async function apiRequest(path, opts = {}) {
   const res = await fetch(url, { ...opts, headers });
   const data = await res.json().catch(() => ({ success: false, error: 'Invalid response from server' }));
 
-  if (!res.ok && !data.success) {
-    throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok || (data && data.success === false)) {
+    const err = new Error(data?.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
 
   return data;

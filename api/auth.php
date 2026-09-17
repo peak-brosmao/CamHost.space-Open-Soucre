@@ -110,6 +110,62 @@ function requireAdmin(): array {
     return $user;
 }
 
+// ── User Profile Builder ────────────────────────────────────────
+
+/**
+ * Builds full user profile with accurate real-time storage metrics.
+ */
+function buildUserProfile(array $user): array {
+    // Storage used
+    $stmt = db()->prepare('SELECT COALESCE(SUM(size_bytes), 0) FROM files WHERE user_id = ?');
+    $stmt->execute([$user['id']]);
+    $storageUsedBytes = (int)$stmt->fetchColumn();
+
+    // Default storage quota setting
+    $defStmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
+    $defStmt->execute(['default_storage_quota_mb']);
+    $defRow = $defStmt->fetch();
+    $defaultQuotaMb = !empty($defRow['value']) ? (int)$defRow['value'] : 10240;
+    $defaultQuotaBytes = $defaultQuotaMb * 1024 * 1024;
+
+    // Effective quota
+    $storageQuotaBytes = (int)($user['storage_quota'] ?? 0);
+    if ($storageQuotaBytes <= 0) {
+        $storageQuotaBytes = $defaultQuotaBytes;
+    }
+    $storageQuotaMb = round($storageQuotaBytes / 1024 / 1024);
+    $storageUsedMb  = round($storageUsedBytes / 1024 / 1024, 2);
+    $percent = $storageQuotaBytes > 0 ? min(100, round(($storageUsedBytes / $storageQuotaBytes) * 100, 1)) : 0;
+
+    // Plan determination
+    if (($user['role'] ?? '') === 'admin') {
+        $plan = 'Unlimited Pro';
+    } elseif ($storageQuotaMb > 20480) {
+        $plan = 'Pro Tier (' . round($storageQuotaMb / 1024) . ' GB)';
+    } else {
+        $plan = 'Standard Plan (' . round($storageQuotaMb / 1024) . ' GB)';
+    }
+
+    return [
+        'id'                  => (int)$user['id'],
+        'email'               => $user['email'],
+        'display_name'        => $user['display_name'] ?? '',
+        'role'                => $user['role'],
+        'is_verified'         => (int)($user['is_verified'] ?? 1),
+        'is_banned'           => (int)($user['is_banned'] ?? 0),
+        'storage_quota'       => $storageQuotaBytes,
+        'storage_quota_mb'    => $storageQuotaMb,
+        'storage_quota_human' => formatBytes($storageQuotaBytes),
+        'storage_used'        => $storageUsedBytes,
+        'storage_used_mb'     => $storageUsedMb,
+        'storage_used_human'  => formatBytes($storageUsedBytes),
+        'storage_percent'     => $percent,
+        'default_quota_mb'    => $defaultQuotaMb,
+        'plan'                => $plan,
+        'created_at'          => $user['created_at'] ?? null,
+    ];
+}
+
 // ── Route Handlers ──────────────────────────────────────────────
 
 /**
@@ -155,13 +211,7 @@ function handleLogin(): void {
 
     jsonSuccess([
         'token' => $token,
-        'user'  => [
-            'id'           => $user['id'],
-            'email'        => $user['email'],
-            'display_name' => $user['display_name'] ?? '',
-            'role'         => $user['role'],
-            'is_verified'  => (int)($user['is_verified'] ?? 1),
-        ],
+        'user'  => buildUserProfile($user),
     ]);
 }
 
@@ -261,13 +311,7 @@ function handleVerifyAccount(): void {
     jsonSuccess([
         'verified' => true,
         'token'    => $jwt,
-        'user'     => [
-            'id'           => $user['id'],
-            'email'        => $user['email'],
-            'display_name' => $user['display_name'] ?? '',
-            'role'         => $user['role'],
-            'is_verified'  => 1,
-        ],
+        'user'     => buildUserProfile($user),
         'message'  => 'Account successfully verified and activated!',
     ]);
 }
@@ -325,57 +369,8 @@ function handleResendVerification(): void {
  */
 function handleMe(): void {
     $user = requireAuth();
-
-    // Storage used
-    $stmt = db()->prepare('SELECT COALESCE(SUM(size_bytes), 0) FROM files WHERE user_id = ?');
-    $stmt->execute([$user['id']]);
-    $storageUsedBytes = (int)$stmt->fetchColumn();
-
-    // Default storage quota setting
-    $defStmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
-    $defStmt->execute(['default_storage_quota_mb']);
-    $defRow = $defStmt->fetch();
-    $defaultQuotaMb = !empty($defRow['value']) ? (int)$defRow['value'] : 10240;
-    $defaultQuotaBytes = $defaultQuotaMb * 1024 * 1024;
-
-    // Effective quota
-    $storageQuotaBytes = (int)($user['storage_quota'] ?? 0);
-    if ($storageQuotaBytes <= 0) {
-        $storageQuotaBytes = $defaultQuotaBytes;
-    }
-    $storageQuotaMb = round($storageQuotaBytes / 1024 / 1024);
-    $storageUsedMb  = round($storageUsedBytes / 1024 / 1024, 2);
-    $percent = $storageQuotaBytes > 0 ? min(100, round(($storageUsedBytes / $storageQuotaBytes) * 100, 1)) : 0;
-
-    // Plan determination
-    if ($user['role'] === 'admin') {
-        $plan = 'Unlimited Admin';
-    } elseif ($storageQuotaMb > 20480) {
-        $plan = 'Pro Tier (' . round($storageQuotaMb / 1024) . ' GB)';
-    } else {
-        $plan = 'Standard Plan (' . round($storageQuotaMb / 1024) . ' GB)';
-    }
-
-    jsonSuccess([
-        'id'                  => $user['id'],
-        'email'               => $user['email'],
-        'display_name'        => $user['display_name'] ?? '',
-        'role'                => $user['role'],
-        'is_verified'         => (int)($user['is_verified'] ?? 1),
-        'is_banned'           => (int)($user['is_banned'] ?? 0),
-        'storage_quota'       => $storageQuotaBytes,
-        'storage_quota_mb'    => $storageQuotaMb,
-        'storage_quota_human' => formatBytes($storageQuotaBytes),
-        'storage_used'        => $storageUsedBytes,
-        'storage_used_mb'     => $storageUsedMb,
-        'storage_used_human'  => formatBytes($storageUsedBytes),
-        'storage_percent'     => $percent,
-        'default_quota_mb'    => $defaultQuotaMb,
-        'plan'                => $plan,
-        'created_at'          => $user['created_at'],
-    ]);
+    jsonSuccess(buildUserProfile($user));
 }
-
 
 /**
  * PUT /api/auth/profile — update display name / profile info
@@ -394,14 +389,15 @@ function handleUpdateProfile(): void {
         $stmt = db()->prepare('UPDATE users SET display_name = ?, email = COALESCE(NULLIF(?, ""), email) WHERE id = ?');
         $stmt->execute([$displayName, $email, $user['id']]);
 
-        $updated = db()->prepare('SELECT id, email, display_name, role, is_verified, created_at FROM users WHERE id = ?');
+        $updated = db()->prepare('SELECT * FROM users WHERE id = ?');
         $updated->execute([$user['id']]);
         $userRow = $updated->fetch();
 
         jsonSuccess([
-            'user'    => $userRow,
+            'user'    => buildUserProfile($userRow),
             'message' => 'Profile updated successfully',
         ]);
+
     } catch (PDOException $e) {
         if (str_contains($e->getMessage(), 'UNIQUE')) {
             jsonError('This email is already in use by another account', 409);
