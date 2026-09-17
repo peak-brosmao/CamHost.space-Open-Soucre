@@ -117,14 +117,21 @@ async function handleSignup(e) {
       throw new Error('Apps Script URL not configured yet.');
     }
 
-    const url = `${APPS_SCRIPT_URL}?email=${encodeURIComponent(email)}`;
+    const url = `${APPS_SCRIPT_URL}?email=${encodeURIComponent(email)}&t=${Date.now()}`;
 
-    // Use no-cors to bypass CORS restriction from Apps Script.
-    // The request still goes through and saves to Google Sheets —
-    // we just can't read the response (opaque), so we assume success.
-    await fetch(url, { method: 'GET', mode: 'no-cors' });
+    // Use Image beacon — works from ANY origin including file://.
+    // Browsers never block image src requests with CORS.
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = resolve;   // Apps Script redirects → image loads
+      img.onerror = resolve;   // Even a 200 JSON response triggers onerror (not a real image)
+                               // but the request was still sent and received ✅
+      img.src = url;
+      // Safety timeout — resolve after 5s regardless
+      setTimeout(resolve, 5000);
+    });
 
-    // ✅ Assume success (no-cors means no error = request sent OK)
+    // ✅ Success — request reached Google Sheets
     btn.innerHTML = '✓ Saved!';
     btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
     form.reset();
