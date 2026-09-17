@@ -278,6 +278,7 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
     }
 
     // Build MIME message with From: noreply and Reply-To: support
+    $boundary = "----=_Part_" . bin2hex(random_bytes(16));
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $messageId = '<' . time() . '.' . bin2hex(random_bytes(8)) . '@camhost.space>';
     $date = date('r');
@@ -289,11 +290,23 @@ function sendSmtpEmail(string $to, string $subject, string $htmlBody, string $te
     $headers .= "Subject: {$encodedSubject}\r\n";
     $headers .= "Message-ID: {$messageId}\r\n";
     $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-    $headers .= "Content-Transfer-Encoding: base64\r\n";
-    $headers .= "X-Mailer: CamHost-System/1.0\r\n\r\n";
+    $headers .= "Auto-Submitted: auto-generated\r\n";
+    $headers .= "X-Mailer: CamHost-System/1.0\r\n";
+    $headers .= "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n\r\n";
 
-    $payload = $headers . chunk_split(base64_encode($htmlBody)) . "\r\n.\r\n";
+    $body  = "--{$boundary}\r\n";
+    $body .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
+    $plainText = !empty($textBody) ? $textBody : strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], "\n", $htmlBody));
+    $body .= chunk_split(base64_encode($plainText)) . "\r\n";
+
+    $body .= "--{$boundary}\r\n";
+    $body .= "Content-Type: text/html; charset=UTF-8\r\n";
+    $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
+    $body .= chunk_split(base64_encode($htmlBody)) . "\r\n";
+    $body .= "--{$boundary}--\r\n";
+
+    $payload = $headers . $body . ".\r\n";
     fwrite($socket, $payload);
 
     $res = readSmtp($socket);
