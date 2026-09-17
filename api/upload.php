@@ -135,10 +135,12 @@ function handleUpload(): void {
     $attempts = 0;
     $lastErr = null;
 
-    while ($attempts < 6 && !$inserted) {
+    $newId = null;
+    while ($attempts < 15 && !$inserted) {
         $attempts++;
         try {
-            $stmt = db()->prepare('
+            $pdo = db();
+            $stmt = $pdo->prepare('
                 INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description, is_public, share_token)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             ');
@@ -153,11 +155,13 @@ function handleUpload(): void {
                 $description ?: null,
                 $shareToken,
             ]);
+            $newId = (int)$pdo->lastInsertId();
             $inserted = true;
         } catch (PDOException $e) {
             $lastErr = $e;
-            if (str_contains($e->getMessage(), 'database is locked') && $attempts < 6) {
-                usleep(250000); // Wait 250ms and retry
+            if (str_contains(strtolower($e->getMessage()), 'locked') && $attempts < 15) {
+                db(true); // Close and refresh the PDO connection handle to clear any stuck lock
+                usleep(200000 * $attempts); // Progressive backoff (200ms, 400ms, 600ms...)
                 continue;
             }
             break;
@@ -172,7 +176,9 @@ function handleUpload(): void {
         jsonError('Failed to save file metadata: ' . $lastErr->getMessage(), 500);
     }
 
-    $newId = db()->lastInsertId();
+    if (!$newId) {
+        $newId = (int)db()->lastInsertId();
+    }
     $shareUrl = FRONTEND_URL . '/share/' . $shareToken;
 
     jsonSuccess([

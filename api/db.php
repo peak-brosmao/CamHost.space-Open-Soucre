@@ -10,8 +10,12 @@ require_once __DIR__ . '/config.php';
  * Returns a singleton PDO SQLite connection.
  * Tables are auto-created on first run.
  */
-function db(): PDO {
+function db(bool $forceNew = false): PDO {
     static $pdo = null;
+
+    if ($forceNew) {
+        $pdo = null;
+    }
 
     if ($pdo !== null) return $pdo;
 
@@ -27,16 +31,16 @@ function db(): PDO {
     ]);
 
     // SQLite Concurrency & Anti-Lock Settings
-    $pdo->exec('PRAGMA journal_mode=WAL;');
     $pdo->exec('PRAGMA busy_timeout=60000;');
     $pdo->exec('PRAGMA synchronous=NORMAL;');
     $pdo->exec('PRAGMA foreign_keys=ON;');
 
-    // Only run schema migrations on first launch or if users table missing
+    // Only run schema migrations and WAL initialization on first launch or if users table missing
     static $migrated = false;
     if (!$migrated) {
         $migrated = true;
         try {
+            $pdo->exec('PRAGMA journal_mode=WAL;');
             $hasUsers = $pdo->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='users' LIMIT 1")->fetchColumn();
             if (!$hasUsers) {
                 migrate($pdo);
