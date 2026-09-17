@@ -93,6 +93,43 @@ updateCountdown();
 // 👇 Paste your Apps Script Web App URL here after deploying
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz2fR43IfPXi3N-w-ek-tXXTiuA5xGRYQfTYZEWVSU4c0GL6KjFC-q82vSu3jMRA1oWhg/exec';
 
+/**
+ * Submit a GET request via hidden iframe + form.
+ * This bypasses ALL CORS restrictions — works from file://, http://, https://.
+ * Form submissions are never blocked by browser CORS policies.
+ */
+function submitViaIframe(url) {
+  return new Promise((resolve) => {
+    const frameName = 'gs-frame-' + Date.now();
+
+    // Create hidden iframe
+    const iframe = document.createElement('iframe');
+    iframe.name  = frameName;
+    iframe.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(iframe);
+
+    // Create hidden GET form targeting the iframe
+    const hiddenForm = document.createElement('form');
+    hiddenForm.method = 'GET';
+    hiddenForm.action = url;
+    hiddenForm.target = frameName;
+    hiddenForm.style.display = 'none';
+    document.body.appendChild(hiddenForm);
+
+    // Cleanup after load or timeout
+    function cleanup() {
+      try { document.body.removeChild(iframe); } catch(e) {}
+      try { document.body.removeChild(hiddenForm); } catch(e) {}
+      resolve();
+    }
+
+    iframe.onload = cleanup;
+    setTimeout(cleanup, 6000); // fallback — resolve after 6s
+
+    hiddenForm.submit();
+  });
+}
+
 // ── Signup Form ──
 async function handleSignup(e) {
   e.preventDefault();
@@ -117,21 +154,10 @@ async function handleSignup(e) {
       throw new Error('Apps Script URL not configured yet.');
     }
 
-    const url = `${APPS_SCRIPT_URL}?email=${encodeURIComponent(email)}&t=${Date.now()}`;
+    // Hidden iframe + form submission — zero CORS restrictions, works from file://
+    await submitViaIframe(`${APPS_SCRIPT_URL}?email=${encodeURIComponent(email)}&t=${Date.now()}`);
 
-    // Use Image beacon — works from ANY origin including file://.
-    // Browsers never block image src requests with CORS.
-    await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload  = resolve;   // Apps Script redirects → image loads
-      img.onerror = resolve;   // Even a 200 JSON response triggers onerror (not a real image)
-                               // but the request was still sent and received ✅
-      img.src = url;
-      // Safety timeout — resolve after 5s regardless
-      setTimeout(resolve, 5000);
-    });
-
-    // ✅ Success — request reached Google Sheets
+    // ✅ Success
     btn.innerHTML = '✓ Saved!';
     btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
     form.reset();
