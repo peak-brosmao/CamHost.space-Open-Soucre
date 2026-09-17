@@ -26,6 +26,7 @@ function handleListFolders(): void {
 
     foreach ($folders as &$folder) {
         $folder['id']          = (int)$folder['id'];
+        $folder['folder_name'] = $folder['name'];
         $folder['file_count']  = (int)$folder['file_count'];
         $folder['total_bytes'] = (int)$folder['total_bytes'];
         $folder['size_human']  = formatFolderBytes((int)$folder['total_bytes']);
@@ -38,7 +39,7 @@ function handleListFolders(): void {
 function handleCreateFolder(): void {
     $user = requireAuth();
     $body = json_decode(file_get_contents('php://input'), true);
-    $name = trim($body['name'] ?? '');
+    $name = trim($body['name'] ?? $body['folder_name'] ?? '');
 
     if (!$name) jsonError('Folder name is required', 400);
     if (strlen($name) > 100) jsonError('Folder name too long (max 100 chars)', 400);
@@ -50,7 +51,13 @@ function handleCreateFolder(): void {
         $id = (int)db()->lastInsertId();
 
         jsonSuccess([
-            'folder' => ['id' => $id, 'name' => $name, 'file_count' => 0, 'created_at' => date('c')],
+            'folder' => [
+                'id'          => $id,
+                'name'        => $name,
+                'folder_name' => $name,
+                'file_count'  => 0,
+                'created_at'  => date('c')
+            ],
             'message' => 'Folder created',
         ], 201);
     } catch (PDOException $e) {
@@ -65,7 +72,7 @@ function handleCreateFolder(): void {
 function handleRenameFolder(int $id): void {
     $user = requireAuth();
     $body = json_decode(file_get_contents('php://input'), true);
-    $name = trim($body['name'] ?? '');
+    $name = trim($body['name'] ?? $body['folder_name'] ?? '');
 
     if (!$name) jsonError('New folder name is required', 400);
 
@@ -75,7 +82,10 @@ function handleRenameFolder(int $id): void {
         $stmt = db()->prepare('UPDATE folders SET name = ? WHERE id = ? AND user_id = ?');
         $stmt->execute([$name, $id, $user['id']]);
 
-        jsonSuccess(['folder' => array_merge($folder, ['name' => $name]), 'message' => 'Folder renamed']);
+        jsonSuccess([
+            'folder' => array_merge($folder, ['name' => $name, 'folder_name' => $name]),
+            'message' => 'Folder renamed'
+        ]);
     } catch (PDOException $e) {
         if (str_contains($e->getMessage(), 'UNIQUE')) {
             jsonError("A folder named \"$name\" already exists", 409);

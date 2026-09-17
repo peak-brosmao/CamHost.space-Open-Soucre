@@ -17,11 +17,32 @@ export default function FilesPage() {
   const [selectedFolderId, setSelectedFolderId] = useState('all'); // 'all', 'root', or folder_id string
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('camhost_view_mode') || 'list';
+    } catch (e) {
+      return 'list';
+    }
+  });
+
+  const handleSetViewMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('camhost_view_mode', mode);
+    } catch (e) {}
+  };
 
   // Modals state
   const [renameModal, setRenameModal] = useState({ isOpen: false, file: null, newName: '', loading: false });
-  const [shareModal, setShareModal] = useState({ isOpen: false, file: null, shareUrl: '', loading: false });
+  const [shareModal, setShareModal] = useState({
+    isOpen: false,
+    file: null,
+    shareUrl: '',
+    isPublic: false,
+    downloadLimit: '',
+    loading: false,
+    saving: false,
+  });
   const [moveModal, setMoveModal] = useState({ isOpen: false, file: null, targetFolderId: '', loading: false });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, file: null, loading: false });
 
@@ -149,18 +170,89 @@ export default function FilesPage() {
   };
 
   // Open Share Modal
-  const openShare = async (file) => {
-    setShareModal({ isOpen: true, file, shareUrl: '', loading: true });
+  const openShare = (file) => {
+    const isPublic = file.is_public === 1;
+    const shareUrl = file.share_token
+      ? `${window.location.origin}/share/${file.share_token}`
+      : '';
+    setShareModal({
+      isOpen: true,
+      file,
+      shareUrl,
+      isPublic,
+      downloadLimit: file.download_limit ? String(file.download_limit) : '',
+      loading: false,
+      saving: false,
+    });
+  };
+
+  const handleToggleShare = async (makePublic) => {
+    if (!shareModal.file) return;
+    setShareModal((prev) => ({ ...prev, saving: true }));
     try {
-      const res = await apiRequest(`/files/${file.id}/share`, {
+      const limitVal = shareModal.downloadLimit ? parseInt(shareModal.downloadLimit, 10) : null;
+      const res = await apiRequest(`/files/${shareModal.file.id}/share`, {
         method: 'POST',
-        body: { is_public: 1 },
+        body: {
+          is_public: makePublic ? 1 : 0,
+          download_limit: limitVal,
+        },
       });
       const shareUrl = `${window.location.origin}/share/${res.share_token}`;
-      setShareModal({ isOpen: true, file, shareUrl, loading: false });
+      setShareModal((prev) => ({
+        ...prev,
+        shareUrl: res.is_public ? shareUrl : '',
+        isPublic: Boolean(res.is_public),
+        downloadLimit: res.download_limit ? String(res.download_limit) : '',
+        saving: false,
+      }));
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === shareModal.file.id
+            ? {
+                ...f,
+                is_public: res.is_public ? 1 : 0,
+                share_token: res.share_token,
+                download_limit: res.download_limit,
+              }
+            : f
+        )
+      );
+      showToast(res.message || (makePublic ? 'Public share link activated' : 'File set to private (sharing disabled)'), 'success');
     } catch (err) {
-      showToast(err.message || 'Failed to generate share link', 'error');
-      setShareModal({ isOpen: false, file: null, shareUrl: '', loading: false });
+      showToast(err.message || 'Failed to update sharing', 'error');
+      setShareModal((prev) => ({ ...prev, saving: false }));
+    }
+  };
+
+  const handleSaveDownloadLimit = async () => {
+    if (!shareModal.file) return;
+    setShareModal((prev) => ({ ...prev, saving: true }));
+    try {
+      const limitVal = shareModal.downloadLimit ? parseInt(shareModal.downloadLimit, 10) : null;
+      const res = await apiRequest(`/files/${shareModal.file.id}/share`, {
+        method: 'POST',
+        body: {
+          is_public: shareModal.isPublic ? 1 : 0,
+          download_limit: limitVal,
+        },
+      });
+      setShareModal((prev) => ({
+        ...prev,
+        downloadLimit: res.download_limit ? String(res.download_limit) : '',
+        saving: false,
+      }));
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === shareModal.file.id
+            ? { ...f, download_limit: res.download_limit }
+            : f
+        )
+      );
+      showToast('Download limit updated successfully', 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to update download limit', 'error');
+      setShareModal((prev) => ({ ...prev, saving: false }));
     }
   };
 
@@ -305,7 +397,7 @@ export default function FilesPage() {
               <div className="view-toggle">
                 <button
                   className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                  onClick={() => setViewMode('grid')}
+                  onClick={() => handleSetViewMode('grid')}
                   title="Grid View"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
@@ -317,7 +409,7 @@ export default function FilesPage() {
                 </button>
                 <button
                   className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
-                  onClick={() => setViewMode('list')}
+                  onClick={() => handleSetViewMode('list')}
                   title="List View"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
@@ -639,37 +731,171 @@ export default function FilesPage() {
         </div>
       </Modal>
 
-      {/* Share Modal */}
+      {/* Share / Privacy / Limit Modal */}
       <Modal
         isOpen={shareModal.isOpen}
-        onClose={() => setShareModal({ isOpen: false, file: null, shareUrl: '', loading: false })}
-        title="Public Share Link"
-        confirmText={shareModal.shareUrl ? 'Copy Link' : null}
-        onConfirm={shareModal.shareUrl ? copyShareLink : null}
+        onClose={() =>
+          setShareModal({
+            isOpen: false,
+            file: null,
+            shareUrl: '',
+            isPublic: false,
+            downloadLimit: '',
+            loading: false,
+            saving: false,
+          })
+        }
+        title="Share & Privacy Settings"
+        confirmText={null}
       >
-        {shareModal.loading ? (
-          <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <span className="spinner-sm" /> Generating link...
-          </div>
-        ) : (
-          <div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '14px' }}>
-              Anyone with this link can view and download <strong>{shareModal.file?.file_name || shareModal.file?.original_name || 'this file'}</strong> without an account.
-            </p>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                className="input-field"
-                value={shareModal.shareUrl}
-                readOnly
-                style={{ fontFamily: 'monospace', fontSize: '0.84rem' }}
-              />
-              <button className="btn btn-secondary" onClick={copyShareLink}>
-                Copy
-              </button>
+        <div>
+          {/* Privacy status banner */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '16px',
+              padding: '12px 16px',
+              background: 'var(--bg2)',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                Privacy Status
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {shareModal.isPublic ? (
+                  <span className="shared-badge" style={{ padding: '3px 10px', fontSize: '0.8rem' }}>
+                    <span
+                      style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        background: '#00c97a',
+                        display: 'inline-block',
+                      }}
+                    />
+                    Public Link Active
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '3px 10px',
+                      borderRadius: '20px',
+                      background: 'rgba(255,255,255,0.06)',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Private (Only You)
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              {shareModal.isPublic ? (
+                <button
+                  className="btn btn-secondary danger"
+                  style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                  onClick={() => handleToggleShare(false)}
+                  disabled={shareModal.saving}
+                  title="Make file private and revoke public share link"
+                >
+                  {shareModal.saving ? 'Saving...' : 'Set to Private'}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary"
+                  style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+                  onClick={() => handleToggleShare(true)}
+                  disabled={shareModal.saving}
+                  title="Generate a public shareable link"
+                >
+                  {shareModal.saving ? 'Saving...' : 'Enable Public Link'}
+                </button>
+              )}
             </div>
           </div>
-        )}
+
+          {shareModal.isPublic ? (
+            <>
+              {/* Share link input */}
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text)' }}>
+                  Public Share Link
+                </label>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={shareModal.shareUrl}
+                    readOnly
+                    style={{ fontFamily: 'monospace', fontSize: '0.84rem' }}
+                  />
+                  <button className="btn btn-secondary" onClick={copyShareLink} style={{ whiteSpace: 'nowrap' }}>
+                    Copy Link
+                  </button>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
+                  Anyone with this link can view and download <strong>{shareModal.file?.file_name || shareModal.file?.original_name || 'this file'}</strong> without an account.
+                </p>
+              </div>
+
+              {/* Download limit setting */}
+              <div className="form-group" style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', marginBottom: '8px' }}>
+                <label htmlFor="share-download-limit" style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text)' }}>
+                  Download Limit (Optional)
+                </label>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginBottom: '8px' }}>
+                  Set a maximum number of downloads. Once reached, downloads will be automatically blocked. Leave blank for unlimited.
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    id="share-download-limit"
+                    type="number"
+                    min="1"
+                    className="input-field"
+                    placeholder="e.g. 5 (or blank for unlimited)"
+                    value={shareModal.downloadLimit}
+                    onChange={(e) => setShareModal((prev) => ({ ...prev, downloadLimit: e.target.value }))}
+                  />
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleSaveDownloadLimit}
+                    disabled={shareModal.saving}
+                    style={{ whiteSpace: 'nowrap' }}
+                  >
+                    {shareModal.saving ? 'Saving...' : 'Save Limit'}
+                  </button>
+                </div>
+                {shareModal.file?.download_limit && (
+                  <p style={{ color: '#00d4ff', fontSize: '0.76rem', marginTop: '6px' }}>
+                    Current Limit: {shareModal.file.download_limit} downloads ({shareModal.file.downloads || 0} used)
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)', fontSize: '0.86rem' }}>
+              <p>This file is currently <strong>Private</strong>. Only you can access or download it.</p>
+              <p style={{ fontSize: '0.8rem', marginTop: '6px' }}>
+                Click <strong>"Enable Public Link"</strong> above whenever you want to generate a shareable link.
+              </p>
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* Move to Folder Modal */}

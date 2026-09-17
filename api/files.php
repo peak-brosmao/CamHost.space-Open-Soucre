@@ -39,7 +39,7 @@ function handleListFiles(): void {
         }
     }
 
-    $sql = "SELECT id, folder_id, original_name, mime_type, size_bytes, share_token, is_public, description, COALESCE(downloads, 0) as downloads, created_at
+    $sql = "SELECT id, folder_id, original_name, mime_type, size_bytes, share_token, is_public, description, COALESCE(downloads, 0) as downloads, download_limit, created_at
             FROM files
             $where
             ORDER BY $sort $order
@@ -68,8 +68,9 @@ function handleListFiles(): void {
         $file['size']          = $sizeBytes;
         $file['size_human']    = formatBytes($sizeBytes);
         $file['downloads']     = (int)($file['downloads'] ?? 0);
+        $file['download_limit'] = !empty($file['download_limit']) ? (int)$file['download_limit'] : null;
         $file['is_public']     = (int)($file['is_public'] ?? 0);
-        $file['share_url']     = !empty($file['share_token']) ? 'https://camhost.space/share.html?token=' . $file['share_token'] : null;
+        $file['share_url']     = !empty($file['share_token']) ? 'https://camhost.space/share/' . $file['share_token'] : null;
     }
 
     jsonSuccess([
@@ -99,6 +100,7 @@ function handleGetFile(int $id): void {
     $file['size']          = $sizeBytes;
     $file['size_human']    = formatBytes($sizeBytes);
     $file['downloads']     = (int)($file['downloads'] ?? 0);
+    $file['download_limit'] = !empty($file['download_limit']) ? (int)$file['download_limit'] : null;
 
     jsonSuccess(['file' => $file]);
 }
@@ -161,7 +163,7 @@ function handleRenameFile(int $id): void {
 /**
  * POST /api/files/{id}/share
  * Toggle or generate public sharing token.
- * Body: { is_public?: boolean }
+ * Body: { is_public?: boolean|int, download_limit?: int|null }
  */
 function handleShareFile(int $id): void {
     $user = requireAuth();
@@ -173,18 +175,25 @@ function handleShareFile(int $id): void {
     }
 
     $body = json_decode(file_get_contents('php://input'), true);
-    $isPublic = isset($body['is_public']) ? ($body['is_public'] ? 1 : 0) : 1;
+    $isPublic = isset($body['is_public']) ? ((int)$body['is_public'] === 1 || $body['is_public'] === true ? 1 : 0) : 1;
 
-    $stmt = db()->prepare('UPDATE files SET share_token = ?, is_public = ? WHERE id = ? AND user_id = ?');
-    $stmt->execute([$token, $isPublic, $id, $user['id']]);
+    $downloadLimit = null;
+    if (isset($body['download_limit']) && $body['download_limit'] !== '' && $body['download_limit'] !== null) {
+        $lim = (int)$body['download_limit'];
+        $downloadLimit = $lim > 0 ? $lim : null;
+    }
 
-    $shareUrl = 'https://camhost.space/share.html?token=' . $token;
+    $stmt = db()->prepare('UPDATE files SET share_token = ?, is_public = ?, download_limit = ? WHERE id = ? AND user_id = ?');
+    $stmt->execute([$token, $isPublic, $downloadLimit, $id, $user['id']]);
+
+    $shareUrl = 'https://camhost.space/share/' . $token;
 
     jsonSuccess([
-        'share_token' => $token,
-        'share_url'   => $shareUrl,
-        'is_public'   => (bool)$isPublic,
-        'message'     => $isPublic ? 'Share link activated' : 'Share link disabled',
+        'share_token'    => $token,
+        'share_url'      => $shareUrl,
+        'is_public'      => (int)$isPublic,
+        'download_limit' => $downloadLimit,
+        'message'        => $isPublic ? 'Public sharing link activated' : 'File set to private (sharing disabled)',
     ]);
 }
 
@@ -193,12 +202,19 @@ function handleShareFile(int $id): void {
  * Public endpoint: returns public file information without requiring authentication.
  */
 function handleGetSharedFile(string $token): void {
-    $stmt = db()->prepare('SELECT id, original_name, mime_type, size_bytes, COALESCE(downloads, 0) as downloads, created_at FROM files WHERE share_token = ? AND is_public = 1');
+    $stmt = db()->prepare('SELECT id, original_name, mime_type, size_bytes, COALESCE(downloads, 0) as downloads, download_limit, created_at FROM files WHERE share_token = ? AND is_public = 1');
     $stmt->execute([$token]);
     $file = $stmt->fetch();
 
     if (!$file) {
-        jsonError('Shared file not found or link has been disabled', 404);
+        jsonError('Shared file not found or sharing has been disabled (set to private)', 404);
+    }
+
+    $downloadLimit = !empty($file['download_limit']) ? (int)$file['download_limit'] : null;
+    $downloads     = (int)($file['downloads'] ?? 0);
+
+    if ($downloadLimit !== null && $downloads >= $downloadLimit) {
+        jsonError("This shared file has reached its download limit ($downloadLimit downloads) and is no longer available.", 403);
     }
 
     $file['id']            = (int)$file['id'];
@@ -211,7 +227,8 @@ function handleGetSharedFile(string $token): void {
     $file['file_size']     = $sizeBytes;
     $file['size']          = $sizeBytes;
     $file['size_human']    = formatBytes($sizeBytes);
-    $file['downloads']     = (int)($file['downloads'] ?? 0);
+    $file['downloads']     = $downloads;
+    $file['download_limit'] = $downloadLimit;
 
     jsonSuccess(['file' => $file]);
 }
@@ -259,16 +276,20 @@ function handleDownloadFile(int $id): void {
  * Public endpoint: streams the shared file download.
  */
 function handleDownloadSharedFile(string $token): void {
-    $stmt = db()->prepare('SELECT id, telegram_file_id, original_name, mime_type, is_blocked FROM files WHERE share_token = ? AND is_public = 1');
+    $stmt = db()->prepare('SELECT id, telegram_file_id, original_name, mime_type, is_blocked, COALESCE(downloads, 0) as downloads, download_limit FROM files WHERE share_token = ? AND is_public = 1');
     $stmt->execute([$token]);
     $file = $stmt->fetch();
 
     if (!$file) {
-        jsonError('Shared file not found or link has been disabled', 404);
+        jsonError('Shared file not found or link has been disabled (set to private)', 404);
     }
 
     if (!empty($file['is_blocked'])) {
         jsonError('This shared file has been suspended or blocked by an administrator.', 403);
+    }
+
+    if (!empty($file['download_limit']) && (int)$file['downloads'] >= (int)$file['download_limit']) {
+        jsonError('This shared file has reached its download limit (' . $file['download_limit'] . ' downloads) and can no longer be downloaded.', 403);
     }
 
     // Increment download count

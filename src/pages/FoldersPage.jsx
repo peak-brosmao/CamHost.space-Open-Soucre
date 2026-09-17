@@ -39,7 +39,8 @@ export default function FoldersPage() {
 
   // Create folder
   const handleCreateSubmit = async () => {
-    if (!createModal.name.trim()) {
+    const trimmed = createModal.name.trim();
+    if (!trimmed) {
       showToast('Folder name is required', 'error');
       return;
     }
@@ -47,7 +48,7 @@ export default function FoldersPage() {
     try {
       await apiRequest('/folders', {
         method: 'POST',
-        body: { folder_name: createModal.name.trim() },
+        body: { name: trimmed, folder_name: trimmed },
       });
       showToast('Folder created successfully', 'success');
       setCreateModal({ isOpen: false, name: '', loading: false });
@@ -61,11 +62,13 @@ export default function FoldersPage() {
   // Rename folder
   const openRename = (e, folder) => {
     e.stopPropagation();
-    setRenameModal({ isOpen: true, folder, newName: folder.folder_name, loading: false });
+    const currentName = folder.folder_name || folder.name || '';
+    setRenameModal({ isOpen: true, folder, newName: currentName, loading: false });
   };
 
   const handleRenameSubmit = async () => {
-    if (!renameModal.newName.trim()) {
+    const trimmed = renameModal.newName.trim();
+    if (!trimmed) {
       showToast('Folder name cannot be empty', 'error');
       return;
     }
@@ -73,7 +76,7 @@ export default function FoldersPage() {
     try {
       await apiRequest(`/folders/${renameModal.folder.id}`, {
         method: 'PUT',
-        body: { folder_name: renameModal.newName.trim() },
+        body: { name: trimmed, folder_name: trimmed },
       });
       showToast('Folder renamed successfully', 'success');
       setRenameModal({ isOpen: false, folder: null, newName: '', loading: false });
@@ -195,8 +198,8 @@ export default function FoldersPage() {
                     </div>
                   </div>
 
-                  <div className="folder-name" title={folder.folder_name}>
-                    {folder.folder_name}
+                  <div className="folder-name" title={folder.folder_name || folder.name || 'Untitled Folder'}>
+                    {folder.folder_name || folder.name || 'Untitled Folder'}
                   </div>
                   <div className="folder-meta">
                     Click to view files inside

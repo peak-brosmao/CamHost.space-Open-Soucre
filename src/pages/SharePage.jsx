@@ -194,59 +194,65 @@ export default function SharePage() {
                     </div>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" style={{ opacity: 0.7 }}>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    {downloads} {downloads === 1 ? 'download' : 'downloads'}
-                  </span>
-                </div>
-              </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" style={{ opacity: 0.7 }}>
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        {file.download_limit
+                          ? `${downloads} / ${file.download_limit} downloads`
+                          : `${downloads} ${downloads === 1 ? 'download' : 'downloads'}`}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Direct Download Action */}
-              <button
-                type="button"
-                onClick={async () => {
-                  setDownloading(true);
-                  try {
-                    await downloadFile(`/share/${token}/download`, fileName);
-                    setFile((prev) => (prev ? { ...prev, downloads: (prev.downloads || 0) + 1 } : prev));
-                  } catch (err) {
-                    alert(err.message || 'Download failed');
-                  } finally {
-                    setDownloading(false);
-                  }
-                }}
-                disabled={downloading}
-                className="btn btn-primary"
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '14px 20px',
-                  fontSize: '0.96rem',
-                }}
-              >
-                {downloading ? (
-                  <>
-                    <span className="spinner-sm" /> Downloading from CamHost...
-                  </>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="16" height="16">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    Download File ({formatBytes(fileSize)})
-                  </>
-                )}
-              </button>
+                  {/* Direct Download Action */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setDownloading(true);
+                      try {
+                        await downloadFile(`/share/${token}/download`, fileName);
+                        setFile((prev) => (prev ? { ...prev, downloads: (prev.downloads || 0) + 1 } : prev));
+                      } catch (err) {
+                        alert(err.message || 'Download failed');
+                      } finally {
+                        setDownloading(false);
+                      }
+                    }}
+                    disabled={downloading || (Boolean(file.download_limit) && downloads >= file.download_limit)}
+                    className="btn btn-primary"
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '14px 20px',
+                      fontSize: '0.96rem',
+                    }}
+                  >
+                    {downloading ? (
+                      <>
+                        <span className="spinner-sm" /> Downloading from CamHost...
+                      </>
+                    ) : Boolean(file.download_limit) && downloads >= file.download_limit ? (
+                      <>
+                        Download Limit Reached ({file.download_limit}/{file.download_limit})
+                      </>
+                    ) : (
+                      <>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="16" height="16">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Download File ({formatBytes(fileSize)})
+                      </>
+                    )}
+                  </button>
 
               <div
                 style={{

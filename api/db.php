@@ -107,6 +107,7 @@ function migrate(PDO $pdo): void {
     try { $pdo->exec('ALTER TABLE files ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0'); } catch (Exception $e) {}
     try { $pdo->exec('ALTER TABLE files ADD COLUMN downloads INTEGER NOT NULL DEFAULT 0'); } catch (Exception $e) {}
     try { $pdo->exec('ALTER TABLE files ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0'); } catch (Exception $e) {}
+    try { $pdo->exec('ALTER TABLE files ADD COLUMN download_limit INTEGER DEFAULT NULL'); } catch (Exception $e) {}
 
     try { $pdo->exec('ALTER TABLE users ADD COLUMN display_name TEXT'); } catch (Exception $e) {}
     try { $pdo->exec('ALTER TABLE users ADD COLUMN is_verified INTEGER NOT NULL DEFAULT 0'); } catch (Exception $e) {}
