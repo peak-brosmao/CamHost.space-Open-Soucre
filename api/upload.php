@@ -60,11 +60,26 @@ function handleUpload(): void {
     $description  = trim($_POST['description'] ?? '');
     $tmpPath      = $f['tmp_name'];
 
+    // ── Check Telegram bot configuration ─────────────────────────
+    if (empty(TELEGRAM_BOT_TOKEN)) {
+        jsonError('Telegram Bot Token is not configured. Please set TELEGRAM_BOT_TOKEN in your server api/.env file.', 500);
+    }
+    if (empty(TELEGRAM_CHAT_ID)) {
+        jsonError('Telegram Chat ID is not configured. Please set TELEGRAM_CHAT_ID in your server api/.env file.', 500);
+    }
+
     // ── Send to Telegram ────────────────────────────────────────
     $result = sendToTelegram($tmpPath, $originalName, $mimeType, $description);
 
     if (!$result['ok']) {
-        jsonError('Telegram upload failed: ' . ($result['description'] ?? 'Unknown error'), 502);
+        $desc = $result['description'] ?? 'Unknown error';
+        if (str_contains(strtolower($desc), 'unauthorized')) {
+            jsonError('Telegram Bot Token is invalid or unauthorized (401). Please check that TELEGRAM_BOT_TOKEN in your server api/.env matches the token provided by @BotFather.', 502);
+        }
+        if (str_contains(strtolower($desc), 'chat not found') || str_contains(strtolower($desc), 'chat_write_forbidden')) {
+            jsonError('Telegram Channel error: ' . $desc . '. Please make sure your bot is added as an Administrator to your channel with Post permissions.', 502);
+        }
+        jsonError('Telegram upload failed: ' . $desc, 502);
     }
 
     $msg        = $result['result'];
