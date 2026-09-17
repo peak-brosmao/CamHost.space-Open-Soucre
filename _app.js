@@ -189,15 +189,20 @@ function esc(s) {
 }
 
 function mimeIcon(mime = '') {
-  if (mime.startsWith('image/'))  return { emoji: '🖼️', cls: 'type-image' };
-  if (mime.startsWith('video/'))  return { emoji: '🎬', cls: 'type-video' };
-  if (mime.startsWith('audio/'))  return { emoji: '🎵', cls: 'type-audio' };
-  if (mime.includes('pdf'))       return { emoji: '📄', cls: 'type-doc' };
-  if (mime.includes('word') || mime.includes('document')) return { emoji: '📝', cls: 'type-doc' };
-  if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar')) return { emoji: '🗜️', cls: 'type-zip' };
-  if (mime.includes('text/'))     return { emoji: '📃', cls: 'type-doc' };
-  if (mime.includes('json') || mime.includes('javascript') || mime.includes('php') || mime.includes('python')) return { emoji: '💻', cls: 'type-code' };
-  return { emoji: '📦', cls: 'type-other' };
+  if (mime.startsWith('image/'))  return { color: '#00d4ff', letter: 'IMG', bg: 'rgba(0,212,255,.12)' };
+  if (mime.startsWith('video/'))  return { color: '#7b4fff', letter: 'VID', bg: 'rgba(123,79,255,.12)' };
+  if (mime.startsWith('audio/'))  return { color: '#ff6b9d', letter: 'AUD', bg: 'rgba(255,107,157,.12)' };
+  if (mime.includes('pdf'))       return { color: '#ff6b6b', letter: 'PDF', bg: 'rgba(255,107,107,.12)' };
+  if (mime.includes('word') || mime.includes('document')) return { color: '#0077ff', letter: 'DOC', bg: 'rgba(0,119,255,.12)' };
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('tar') || mime.includes('gz')) return { color: '#ff9500', letter: 'ZIP', bg: 'rgba(255,149,0,.12)' };
+  if (mime.startsWith('text/'))   return { color: '#00c97a', letter: 'TXT', bg: 'rgba(0,201,122,.12)' };
+  if (mime.includes('json') || mime.includes('javascript') || mime.includes('php') || mime.includes('python')) return { color: '#00c97a', letter: 'COD', bg: 'rgba(0,201,122,.12)' };
+  return { color: '#7b4fff', letter: 'FILE', bg: 'rgba(123,79,255,.12)' };
+}
+
+function typeIconHtml(mime, size = 42) {
+  const { color, letter, bg } = mimeIcon(mime);
+  return `<div style="width:${size}px;height:${size}px;border-radius:${Math.round(size*.28)}px;background:${bg};border:1px solid ${color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:${Math.round(size*.22)}px;font-weight:800;color:${color};letter-spacing:-.02em;font-family:'Outfit',system-ui,sans-serif">${letter}</div>`;
 }
 
 function relativeDate(iso) {

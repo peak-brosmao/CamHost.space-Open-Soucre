@@ -202,10 +202,10 @@ function navigateTo(page) {
     el.classList.toggle('active', el.id === 'page-' + page);
   });
   document.getElementById('topbar-title').textContent = {
-    files:    '📁 My Files',
-    upload:   '⬆️ Upload Files',
-    signups:  '📧 Email Signups',
-    settings: '⚙️ Settings',
+    files:    'My Files',
+    upload:   'Upload Files',
+    signups:  'Email Signups',
+    settings: 'Settings',
   }[page] || 'Dashboard';
 
   closeSidebar();
@@ -277,7 +277,7 @@ function fileCard(f) {
   const date = new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   return `
     <div class="file-card" id="file-${f.id}">
-      <div class="file-type-icon ${icon.cls}">${icon.emoji}</div>
+      <div class="file-type-icon ${icon.cls}" style="font-size:0.75rem;font-weight:700;letter-spacing:0.05em">${icon.label}</div>
       <div class="file-info">
         <div class="file-name" title="${esc(f.original_name)}">${esc(f.original_name)}</div>
         <div class="file-meta">
@@ -307,14 +307,14 @@ function fileCard(f) {
 }
 
 function mimeIcon(mime = '') {
-  if (mime.startsWith('image/'))  return { cls: 'type-image', emoji: '🖼️' };
-  if (mime.startsWith('video/'))  return { cls: 'type-video', emoji: '🎬' };
-  if (mime.startsWith('audio/'))  return { cls: 'type-audio', emoji: '🎵' };
-  if (mime.includes('pdf'))       return { cls: 'type-doc',   emoji: '📄' };
-  if (mime.includes('word') || mime.includes('document')) return { cls: 'type-doc', emoji: '📝' };
-  if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z') || mime.includes('tar')) return { cls: 'type-zip', emoji: '🗜️' };
-  if (mime.includes('text/'))     return { cls: 'type-doc',   emoji: '📃' };
-  return { cls: 'type-other', emoji: '📦' };
+  if (mime.startsWith('image/'))  return { cls: 'type-image', label: 'IMG' };
+  if (mime.startsWith('video/'))  return { cls: 'type-video', label: 'VID' };
+  if (mime.startsWith('audio/'))  return { cls: 'type-audio', label: 'AUD' };
+  if (mime.includes('pdf'))       return { cls: 'type-doc',   label: 'PDF' };
+  if (mime.includes('word') || mime.includes('document')) return { cls: 'type-doc', label: 'DOC' };
+  if (mime.includes('zip') || mime.includes('rar') || mime.includes('7z') || mime.includes('tar')) return { cls: 'type-zip', label: 'ZIP' };
+  if (mime.includes('text/'))     return { cls: 'type-doc',   label: 'TXT' };
+  return { cls: 'type-other', label: 'FILE' };
 }
 
 async function downloadFile(id, name) {

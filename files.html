@@ -157,9 +157,8 @@ function renderFiles(files) {
 }
 
 function fileCard(f) {
-  const {emoji} = mimeIcon(f.mime_type);
   return `<div class="file-card-grid">
-    <div class="file-grid-icon">${emoji}</div>
+    ${typeIconHtml(f.mime_type, 44)}
     <div class="file-grid-name" title="${esc(f.original_name)}">${esc(f.original_name)}</div>
     <div class="file-grid-meta">${formatBytes(f.size_bytes)} · ${relativeDate(f.created_at)}</div>
     <div class="file-grid-actions">
@@ -174,9 +173,8 @@ function fileCard(f) {
 }
 
 function fileRow(f) {
-  const {emoji} = mimeIcon(f.mime_type);
   return `<tr>
-    <td><div class="file-td-name"><span class="file-td-icon">${emoji}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.original_name)}</span></div></td>
+    <td><div class="file-td-name">${typeIconHtml(f.mime_type, 28)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.original_name)}</span></div></td>
     <td>${formatBytes(f.size_bytes)}</td>
     <td><span class="badge badge-cyan">${esc(f.mime_type?.split('/')[0]||'file')}</span></td>
     <td style="color:var(--text-muted)">${relativeDate(f.created_at)}</td>

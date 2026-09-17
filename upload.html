@@ -40,7 +40,7 @@
         <div class="page-actions">
           <!-- Folder selector -->
           <select class="form-input form-select" id="folder-select" style="width:auto;padding:7px 14px;height:36px">
-            <option value="">📂 No Folder (root)</option>
+            <option value="">(Root / No Folder)</option>
           </select>
         </div>
       </div>
@@ -88,7 +88,7 @@ async function loadFolders() {
     const sel = document.getElementById('folder-select');
     (res.folders||[]).forEach(f=>{
       const o = document.createElement('option');
-      o.value = f.id; o.textContent = '📂 '+f.name;
+      o.value = f.id; o.textContent = '/ ' + f.name;
       sel.appendChild(o);
     });
   } catch{}

@@ -141,7 +141,9 @@ function renderFolders() {
 
 function folderCard(f) {
   return `<div class="folder-card" onclick="openFolder(${f.id},'${esc(f.name)}')">
-    <div class="folder-icon">📂</div>
+    <div class="folder-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36" style="color:var(--orange)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
     <div class="folder-name" title="${esc(f.name)}">${esc(f.name)}</div>
     <div class="folder-meta">${f.file_count} file${f.file_count!==1?'s':''} · ${formatBytes(f.total_bytes)}</div>
     <div class="folder-actions" onclick="event.stopPropagation()">
@@ -173,9 +175,8 @@ async function openFolder(id, name) {
 }
 
 function folderFileRow(f) {
-  const {emoji} = mimeIcon(f.mime_type);
   return `<tr>
-    <td><div class="file-td-name"><span class="file-td-icon">${emoji}</span>${esc(f.original_name)}</div></td>
+    <td><div class="file-td-name">${typeIconHtml(f.mime_type, 26)}${esc(f.original_name)}</div></td>
     <td>${formatBytes(f.size_bytes)}</td>
     <td style="color:var(--text-muted)">${relativeDate(f.created_at)}</td>
     <td><div style="display:flex;gap:6px">

@@ -15,21 +15,21 @@
 
 ---
 
-## 🚀 What is CamHost.space?
+## What is CamHost.space?
 
-CamHost.space is an **open-source unlimited cloud storage platform** that uses **Telegram Bots** as a backend storage layer. Users can upload any file through a beautiful web interface, and the system silently forwards the file to a Telegram bot/channel — giving you virtually unlimited, free, private storage.
+**CamHost.space** is an open-source, private cloud storage platform that uses **Telegram Bots** as an infinite, free storage backend. Upload files from your web browser — CamHost streams them to a private Telegram channel and gives you a direct, high-speed download link.
 
-## ✨ Features (Planned)
+## Features
 
-- 📁 **Unlimited storage** — leverages Telegram's free infrastructure
-- 🌐 **Web upload interface** — drag & drop, multi-file, progress tracking
-- 🤖 **Telegram bot backend** — files sent to admin account / private channel
-- 🔒 **Private & secure** — only you control access
-- 📂 **File management dashboard** — browse, search, share, delete
-- 🔗 **Shareable links** — generate public/private links for files
-- 🚀 **Open source** — MIT licensed, self-hostable
+- **Unlimited storage** — leverages Telegram's free infrastructure
+- **Web upload interface** — drag & drop, multi-file, progress tracking
+- **Telegram bot backend** — files sent to admin account / private channel
+- **Private & secure** — only you control access
+- **File management dashboard** — browse, search, share, delete
+- **Shareable links** — generate public/private links for files
+- **Open source** — MIT licensed, self-hostable
 
-## 🔧 How It Works
+## How It Works
 
 ```
 User (Browser) → Web App → Background Service → Telegram Bot → Telegram Cloud
@@ -44,31 +44,29 @@ User (Browser) → Web App → Background Service → Telegram Bot → Telegram 
 4. Metadata (file ID, name, size, type) is saved in a local database
 5. User can access, download, or share the file anytime via the dashboard
 
-## 📦 Tech Stack (Planned)
+## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | HTML, CSS, JavaScript (or Next.js) |
-| Backend | Node.js / Python |
+| Frontend | Vanilla HTML5, CSS3, JavaScript |
+| Backend | PHP 8+ REST API |
 | Storage | Telegram Bot API |
-| Database | SQLite / PostgreSQL |
-| Auth | JWT / OAuth |
+| Database | SQLite (PDO) |
+| Auth | Bearer Token / SHA-256 |
 
-## 🗺️ Roadmap
+## Roadmap
 
-- [x] Coming Soon page
-- [ ] Project architecture design
-- [ ] Telegram bot integration (file upload/download)
-- [ ] Web upload UI
-- [ ] File management dashboard
-- [ ] User authentication
-- [ ] Shareable links
-- [ ] Docker deployment support
-- [ ] API documentation
+- [x] Landing page with dark/light themes
+- [x] PHP REST API backend (`api.camhost.space`)
+- [x] Telegram bot integration (file upload/download/stream)
+- [x] Web upload UI with progress tracking
+- [x] File and folder management dashboard
+- [x] User authentication (Register & Login)
+- [x] Open source and self-hostable
 
-## 🤝 Contributing
+## Contributing
 
-This project is in early development. Contributions, ideas, and feedback are welcome!
+This project is open source. Contributions, ideas, and feedback are welcome!
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -76,12 +74,12 @@ This project is in early development. Contributions, ideas, and feedback are wel
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
-  Made with ❤️ by <a href="https://github.com/peak-brosmao">peak-brosmao</a>
+  Developed by <a href="https://github.com/peak-brosmao">peak-brosmao</a> · <a href="https://peakbrosmao.me">peakbrosmao.me</a>
 </div>
