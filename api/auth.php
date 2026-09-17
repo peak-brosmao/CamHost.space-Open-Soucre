@@ -85,16 +85,23 @@ function requireAuth(): array {
     return $user;
 }
 
-/**
- * Require account to be email/link verified before modifying files or storage.
- */
 function requireVerified(): array {
     $user = requireAuth();
-    if ($user['role'] !== 'admin' && empty($user['is_verified'])) {
-        jsonError('Your account has not been activated yet. Please click the verification link sent to your email.', 403, [
-            'unverified' => true,
-            'email'      => $user['email'],
-        ]);
+    if ($user['role'] !== 'admin') {
+        $reqVerify = false;
+        try {
+            $stmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
+            $stmt->execute(['require_email_verification']);
+            $val = $stmt->fetchColumn();
+            $reqVerify = ($val === '1');
+        } catch (Exception $e) {}
+
+        if ($reqVerify && empty($user['is_verified'])) {
+            jsonError('Your account has not been activated yet. Please click the verification link sent to your email.', 403, [
+                'unverified' => true,
+                'email'      => $user['email'],
+            ]);
+        }
     }
     return $user;
 }

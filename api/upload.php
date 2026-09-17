@@ -91,24 +91,40 @@ function handleUpload(): void {
     }
 
     $folderId = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
+    if ($folderId !== null) {
+        try {
+            $chk = db()->prepare('SELECT id FROM folders WHERE id = ? AND user_id = ?');
+            $chk->execute([$folderId, $user['id']]);
+            if (!$chk->fetchColumn()) {
+                $folderId = null; // Gracefully fallback to root if folder belongs to another user or doesn't exist
+            }
+        } catch (Exception $e) {
+            $folderId = null;
+        }
+    }
 
     // ── Generate Instant Share Token & Save metadata to SQLite ──
     $shareToken = bin2hex(random_bytes(16));
-    $stmt = db()->prepare('
-        INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description, is_public, share_token)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-    ');
-    $stmt->execute([
-        $user['id'],
-        $folderId,
-        $originalName,
-        $mimeType,
-        $sizeBytes,
-        $fileId,
-        $messageId,
-        $description ?: null,
-        $shareToken,
-    ]);
+    try {
+        $stmt = db()->prepare('
+            INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description, is_public, share_token)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        ');
+        $stmt->execute([
+            $user['id'],
+            $folderId,
+            $originalName,
+            $mimeType,
+            $sizeBytes,
+            $fileId,
+            $messageId,
+            $description ?: null,
+            $shareToken,
+        ]);
+    } catch (Throwable $e) {
+        error_log('[CamHost Upload Save Error] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+        jsonError('Failed to save file metadata: ' . $e->getMessage(), 500);
+    }
 
     $newId = db()->lastInsertId();
     $shareUrl = FRONTEND_URL . '/share/' . $shareToken;
@@ -149,26 +165,24 @@ function sendToTelegram(string $path, string $name, string $mime, string $captio
     $url  = TELEGRAM_API_BASE . '/sendDocument';
     $data = [
         'chat_id'              => TELEGRAM_CHAT_ID,
-        'caption'              => $caption ?: $name,
-        'parse_mode'           => 'HTML',
         'disable_notification' => 'true',
         'document'             => new CURLFile($path, $mime, $name),
     ];
+
+    // Only set caption if an explicit description was provided, safely escaped
+    if (!empty($caption)) {
+        $data['caption']    = htmlspecialchars($caption, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $data['parse_mode'] = 'HTML';
+    }
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $data,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => CURL_UPLOAD_TIMEOUT,   // 1 hour for 2 GB in local mode
+        CURLOPT_TIMEOUT        => CURL_UPLOAD_TIMEOUT,
         CURLOPT_CONNECTTIMEOUT => CURL_CONNECT_TIMEOUT,
-        // Progress: keep connection alive during large uploads
-        CURLOPT_NOPROGRESS     => false,
-        CURLOPT_PROGRESSFUNCTION => function($ch, $dlTotal, $dlNow, $ulTotal, $ulNow) {
-            // Prevent PHP timeout by flushing output buffer heartbeat (silent)
-            if (ob_get_level()) ob_flush();
-            return 0; // return non-zero to abort
-        },
+        CURLOPT_NOPROGRESS     => true,
     ]);
 
     $response = curl_exec($ch);

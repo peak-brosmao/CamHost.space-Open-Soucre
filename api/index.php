@@ -214,8 +214,8 @@ function jsonSuccess(array $data, int $code = 200): void {
     exit;
 }
 
-function jsonError(string $message, int $code = 400): void {
+function jsonError(string $message, int $code = 400, array $extra = []): void {
     http_response_code($code);
-    echo json_encode(['success' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+    echo json_encode(['success' => false, 'error' => $message, ...$extra], JSON_UNESCAPED_UNICODE);
     exit;
 }
