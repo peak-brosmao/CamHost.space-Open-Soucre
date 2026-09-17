@@ -76,30 +76,104 @@ function handleUpload(): void {
         jsonError('Telegram Chat ID is not configured. Please set TELEGRAM_CHAT_ID in your server api/.env file.', 500);
     }
 
-    // ── Send to Telegram (Single File Only) ─────────────────────
-    $result = sendToTelegram($tmpPath, $originalName, $mimeType, $description);
+    // ── Send to Telegram ───────────────────────────────────────────
+    $cloudChunkLimit = 49 * 1000 * 1000; // 49 MB — max safe chunk under Telegram Cloud's 50 MB upload limit
+    $needsChunking   = $sizeBytes > $cloudChunkLimit;
 
-    if (!$result['ok']) {
-        $desc = $result['description'] ?? 'Unknown error';
-        if (str_contains(strtolower($desc), 'unauthorized')) {
-            jsonError('Telegram Bot Token is invalid or unauthorized (401). Please check that TELEGRAM_BOT_TOKEN in your server api/.env matches the token provided by @BotFather.', 502);
+    if ($needsChunking) {
+        // ── Transparent Cloud Chunking ──────────────────────────────
+        // Split file into ≤49 MB parts, upload each silently to Telegram,
+        // store all file_ids as JSON array. Download handler reassembles
+        // them into one seamless file — user never sees chunk names.
+        $chunkSize  = $cloudChunkLimit;
+        $totalParts = (int)ceil($sizeBytes / $chunkSize);
+        $fileIds    = [];
+        $messageIds = [];
+        $srcHandle  = fopen($tmpPath, 'rb');
+
+        if (!$srcHandle) {
+            jsonError('Server error: could not read uploaded file for processing.', 500);
         }
-        if (str_contains(strtolower($desc), 'chat not found') || str_contains(strtolower($desc), 'chat_write_forbidden')) {
-            jsonError('Telegram Channel error: ' . $desc . '. Please make sure your bot is added as an Administrator to your channel with Post permissions.', 502);
+
+        $tempDir = sys_get_temp_dir();
+
+        for ($i = 0; $i < $totalParts; $i++) {
+            $offset    = $i * $chunkSize;
+            $remaining = $sizeBytes - $offset;
+            $partSize  = min($chunkSize, $remaining);
+
+            // Write chunk to temp file
+            $chunkPath = $tempDir . '/camhost_chunk_' . uniqid() . '_' . $i . '.tmp';
+            $chunkHandle = fopen($chunkPath, 'wb');
+            if (!$chunkHandle) {
+                fclose($srcHandle);
+                jsonError('Server error: could not create temp chunk file.', 500);
+            }
+
+            fseek($srcHandle, $offset);
+            // Use stream_copy_to_stream for maximum I/O speed
+            stream_copy_to_stream($srcHandle, $chunkHandle, $partSize);
+            fclose($chunkHandle);
+
+            // Upload chunk with internal name (user never sees this)
+            $chunkCaption = ($i === 0 && !empty($description))
+                ? htmlspecialchars($description, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                : '';
+
+            // Verify chunk file was written correctly before uploading
+            $actualChunkSize = filesize($chunkPath);
+            if ($actualChunkSize === false || $actualChunkSize === 0) {
+                fclose($srcHandle);
+                @unlink($chunkPath);
+                jsonError("Server error: chunk " . ($i + 1) . " temp file is empty or unreadable.", 500);
+            }
+
+            error_log("[CamHost Chunk Upload] Part " . ($i + 1) . "/{$totalParts}: {$actualChunkSize} bytes (" . round($actualChunkSize / 1000000, 2) . " MB)");
+
+            $result = sendToTelegram($chunkPath, $originalName, 'application/octet-stream', $chunkCaption);
+            @unlink($chunkPath); // Clean up temp chunk immediately
+
+            if (!$result['ok']) {
+                fclose($srcHandle);
+                $desc = $result['description'] ?? 'Unknown error';
+                handleTelegramError($desc, $i + 1, $totalParts);
+            }
+
+            $msg     = $result['result'];
+            $partFid = extractFileId($msg);
+            if (!$partFid) {
+                fclose($srcHandle);
+                jsonError("Telegram returned no file_id for part " . ($i + 1) . " of {$totalParts}.", 502);
+            }
+
+            $fileIds[]    = $partFid;
+            $messageIds[] = $msg['message_id'];
         }
-        if (str_contains(strtolower($desc), 'file is too big') || str_contains(strtolower($desc), 'request entity too large')) {
-            jsonError('Telegram Bot API rejected file: Telegram Cloud Bot API allows up to 50 MB per file. To upload files up to 2 GB as a single file, run a local Telegram Bot API server and set TELEGRAM_LOCAL_MODE=true.', 413);
+
+        fclose($srcHandle);
+
+        // Store as JSON array of file_ids (download handler detects and reassembles)
+        $fileId    = json_encode($fileIds);
+        $messageId = $messageIds[0]; // Primary message reference
+
+    } else {
+        // ── Single File Upload (Local API or small file) ────────────
+        $result = sendToTelegram($tmpPath, $originalName, $mimeType, $description);
+
+        if (!$result['ok']) {
+            $desc = $result['description'] ?? 'Unknown error';
+            handleTelegramError($desc);
         }
-        jsonError('Telegram upload failed: ' . $desc, 502);
+
+        $msg       = $result['result'];
+        $messageId = $msg['message_id'];
+        $fileId    = extractFileId($msg);
     }
-
-    $msg        = $result['result'];
-    $messageId  = $msg['message_id'];
-    $fileId     = extractFileId($msg);
 
     if (!$fileId) {
         jsonError('Telegram returned no file_id. Check bot permissions.', 502);
     }
+
 
     $folderId = !empty($_POST['folder_id']) ? (int)$_POST['folder_id'] : null;
     if ($folderId !== null) {
@@ -189,11 +263,30 @@ function handleUpload(): void {
         'share_url'   => $shareUrl,
         'share_token' => $shareToken,
         'message'     => 'File uploaded successfully',
-        'mode'        => TELEGRAM_LOCAL_MODE ? 'local-api (2 GB)' : 'cloud-api (50 MB)',
+        'mode'        => TELEGRAM_LOCAL_MODE ? 'local-api (2 GB)' : ($needsChunking ? 'cloud-chunked' : 'cloud-api'),
     ], 201);
 }
-
 // ── Telegram Helpers ────────────────────────────────────────────
+
+/**
+ * Handle Telegram API errors with descriptive messages.
+ * @param int|null $chunkNum  If set, indicates which chunk failed (for multi-part uploads).
+ * @param int|null $totalParts Total chunks being uploaded.
+ */
+function handleTelegramError(string $desc, ?int $chunkNum = null, ?int $totalParts = null): void {
+    $prefix = $chunkNum !== null ? "Telegram upload failed (part {$chunkNum}/{$totalParts}): " : '';
+
+    if (str_contains(strtolower($desc), 'unauthorized')) {
+        jsonError($prefix . 'Telegram Bot Token is invalid or unauthorized (401). Please check TELEGRAM_BOT_TOKEN in api/.env.', 502);
+    }
+    if (str_contains(strtolower($desc), 'chat not found') || str_contains(strtolower($desc), 'chat_write_forbidden')) {
+        jsonError($prefix . 'Telegram Channel error: ' . $desc . '. Ensure your bot is an Admin with Post permissions.', 502);
+    }
+    if (str_contains(strtolower($desc), 'file is too big') || str_contains(strtolower($desc), 'request entity too large')) {
+        jsonError($prefix . 'File exceeds Telegram size limit. ' . $desc, 413);
+    }
+    jsonError($prefix . 'Telegram upload failed: ' . $desc, 502);
+}
 
 /**
  * Upload a file to the configured Telegram chat via sendDocument.

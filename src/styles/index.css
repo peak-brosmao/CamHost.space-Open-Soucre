@@ -3267,5 +3267,38 @@ tbody tr:hover td {
   color: var(--cyan);
 }
 
+/* ── Upload Processing Animations ─────────────────────── */
 
+.processing-pulse {
+  animation: processingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes processingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.dot-animation {
+  display: inline-block;
+  animation: dotPulse 1.4s steps(4, end) infinite;
+  width: 1em;
+  text-align: left;
+  overflow: hidden;
+}
+
+@keyframes dotPulse {
+  0% { width: 0; }
+  25% { width: 0.33em; }
+  50% { width: 0.66em; }
+  75%, 100% { width: 1em; }
+}
+
+.progress-bar-processing {
+  animation: progressSlide 1.2s linear infinite;
+}
+
+@keyframes progressSlide {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
 

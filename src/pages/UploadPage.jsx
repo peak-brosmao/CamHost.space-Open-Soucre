@@ -284,7 +284,11 @@ export default function UploadPage() {
                               )}
                               {item.status === 'uploading' && (
                                 item.progress >= 99 ? (
-                                  <span style={{ color: 'var(--cyan)', fontWeight: 600 }}> · Saving to Telegram Cloud…</span>
+                                  <span style={{ color: 'var(--cyan)', fontWeight: 600 }}>
+                                    {' · '}
+                                    <span className="processing-pulse">Processing & saving to Telegram Cloud</span>
+                                    <span className="dot-animation">...</span>
+                                  </span>
                                 ) : (
                                   ` · ${item.progress}%`
                                 )
@@ -298,11 +302,15 @@ export default function UploadPage() {
                         {item.status === 'uploading' && (
                           <div style={{ width: '120px', background: 'var(--bg3)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
                             <div
+                              className={item.progress >= 99 ? 'progress-bar-processing' : ''}
                               style={{
-                                width: `${item.progress}%`,
-                                background: item.progress >= 99 ? 'var(--cyan)' : 'var(--primary)',
+                                width: item.progress >= 99 ? '100%' : `${item.progress}%`,
+                                background: item.progress >= 99
+                                  ? 'linear-gradient(90deg, var(--cyan), var(--primary), var(--cyan))'
+                                  : 'var(--primary)',
+                                backgroundSize: item.progress >= 99 ? '200% 100%' : 'auto',
                                 height: '100%',
-                                transition: 'width 0.2s ease',
+                                transition: 'width 0.3s ease',
                               }}
                             />
                           </div>
