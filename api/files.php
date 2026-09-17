@@ -191,17 +191,64 @@ function handleGetSharedFile(string $token): void {
 }
 
 /**
+ * GET /api/files/{id}/download
+ * Authenticated endpoint: streams file download for owner or admin.
+ */
+function handleDownloadFile(int $id): void {
+    $user = requireAuth();
+    $stmt = db()->prepare('SELECT * FROM files WHERE id = ?');
+    $stmt->execute([$id]);
+    $file = $stmt->fetch();
+
+    if (!$file) {
+        jsonError('File not found', 404);
+    }
+
+    if ($file['user_id'] != $user['id'] && ($user['role'] ?? '') !== 'admin') {
+        jsonError('Access denied', 403);
+    }
+
+    if (!empty($file['is_blocked'])) {
+        jsonError('This file has been suspended or blocked due to security or policy violations.', 403);
+    }
+
+    // Increment download count
+    try {
+        db()->prepare('UPDATE files SET downloads = downloads + 1 WHERE id = ?')->execute([$id]);
+    } catch (Exception $e) {}
+
+    $info = getTelegramFileInfo($file['telegram_file_id']);
+    if (!$info['ok'] || empty($info['result']['file_path'])) {
+        jsonError('Could not retrieve file stream from Telegram', 502);
+    }
+
+    $filePath    = $info['result']['file_path'];
+    $downloadUrl = TELEGRAM_FILE_BASE . '/' . $filePath;
+
+    proxyDownload($downloadUrl, $file['original_name'], $file['mime_type']);
+}
+
+/**
  * GET /api/share/{token}/download
  * Public endpoint: streams the shared file download.
  */
 function handleDownloadSharedFile(string $token): void {
-    $stmt = db()->prepare('SELECT telegram_file_id, original_name, mime_type FROM files WHERE share_token = ? AND is_public = 1');
+    $stmt = db()->prepare('SELECT id, telegram_file_id, original_name, mime_type, is_blocked FROM files WHERE share_token = ? AND is_public = 1');
     $stmt->execute([$token]);
     $file = $stmt->fetch();
 
     if (!$file) {
         jsonError('Shared file not found or link has been disabled', 404);
     }
+
+    if (!empty($file['is_blocked'])) {
+        jsonError('This shared file has been suspended or blocked by an administrator.', 403);
+    }
+
+    // Increment download count
+    try {
+        db()->prepare('UPDATE files SET downloads = downloads + 1 WHERE id = ?')->execute([$file['id']]);
+    } catch (Exception $e) {}
 
     $info = getTelegramFileInfo($file['telegram_file_id']);
     if (!$info['ok'] || empty($info['result']['file_path'])) {

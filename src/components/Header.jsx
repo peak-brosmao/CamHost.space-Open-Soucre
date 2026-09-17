@@ -60,13 +60,23 @@ export default function Header() {
         </button>
 
         {user ? (
-          <Link to="/files" className="btn btn-primary btn-sm">
-            My Files
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </Link>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {user.role === 'admin' && (
+              <Link to="/admin" className="btn btn-ghost btn-sm" style={{ color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ marginRight: '5px' }}>
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                Admin
+              </Link>
+            )}
+            <Link to="/files" className="btn btn-primary btn-sm">
+              My Files
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </Link>
+          </div>
         ) : (
           <>
             <Link to="/login" className="btn btn-ghost btn-sm">Sign In</Link>

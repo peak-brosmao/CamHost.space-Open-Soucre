@@ -78,6 +78,10 @@ function requireAuth(): array {
         jsonError('Unauthorized — user not found', 401);
     }
 
+    if (!empty($user['is_banned'])) {
+        jsonError('Your account has been suspended by an administrator.', 403, ['banned' => true]);
+    }
+
     return $user;
 }
 
@@ -130,6 +134,13 @@ function handleLogin(): void {
 
     if (!$user || !password_verify($password, $user['password'])) {
         jsonError('Invalid email or password', 401);
+    }
+
+    // Check if account is suspended
+    if (!empty($user['is_banned'])) {
+        jsonError('Your account has been suspended by an administrator.', 403, [
+            'banned' => true,
+        ]);
     }
 
     // Check if account is verified
@@ -303,12 +314,14 @@ function handleResendVerification(): void {
 function handleMe(): void {
     $user = requireAuth();
     jsonSuccess([
-        'id'           => $user['id'],
-        'email'        => $user['email'],
-        'display_name' => $user['display_name'] ?? '',
-        'role'         => $user['role'],
-        'is_verified'  => (int)($user['is_verified'] ?? 1),
-        'created_at'   => $user['created_at'],
+        'id'            => $user['id'],
+        'email'         => $user['email'],
+        'display_name'  => $user['display_name'] ?? '',
+        'role'          => $user['role'],
+        'is_verified'   => (int)($user['is_verified'] ?? 1),
+        'is_banned'     => (int)($user['is_banned'] ?? 0),
+        'storage_quota' => (int)($user['storage_quota'] ?? 10737418240),
+        'created_at'    => $user['created_at'],
     ]);
 }
 

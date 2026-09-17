@@ -72,6 +72,37 @@ $rawPath = preg_replace('#^/api#', '', $rawPath);
 $rawPath = rtrim($rawPath, '/') ?: '/';
 $method  = strtoupper($_SERVER['REQUEST_METHOD']);
 
+// ── Maintenance Mode Check ───────────────────────────────────────
+$isMaintenance = false;
+try {
+    $stmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
+    $stmt->execute(['maintenance_mode']);
+    $val = $stmt->fetchColumn();
+    $isMaintenance = ($val === '1');
+} catch (Exception $e) {}
+
+if ($isMaintenance && !str_starts_with($rawPath, '/admin') && $rawPath !== '/auth/login') {
+    // Check if bearer token belongs to admin
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $isAdmin = false;
+    if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+        require_once __DIR__ . '/auth.php';
+        $payload = jwt_verify($matches[1]);
+        if ($payload && ($payload['role'] ?? '') === 'admin') {
+            $isAdmin = true;
+        }
+    }
+    if (!$isAdmin) {
+        http_response_code(503);
+        echo json_encode([
+            'success'     => false,
+            'error'       => 'CamHost.space is currently undergoing scheduled maintenance. Please check back shortly.',
+            'maintenance' => true,
+        ]);
+        exit;
+    }
+}
+
 // ── Route Dispatch ───────────────────────────────────────────────
 try {
 
@@ -83,6 +114,14 @@ try {
             'status'  => 'ok',
             'time'    => date('c'),
         ]);
+    }
+
+    // ── Admin routes — /admin, /admin/overview, /admin/users, /admin/files, /admin/settings, /admin/health, etc. ──
+    if (str_starts_with($rawPath, '/admin')) {
+        require __DIR__ . '/admin.php';
+        $parts = explode('/', trim($rawPath, '/'));
+        handleAdminRoutes($method, $parts);
+        exit;
     }
 
     // ── Auth routes ──

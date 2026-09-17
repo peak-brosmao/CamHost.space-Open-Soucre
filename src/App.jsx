@@ -14,6 +14,7 @@ import SettingsPage from './pages/SettingsPage';
 import SignupsPage from './pages/SignupsPage';
 import SharePage from './pages/SharePage';
 import VerifyAccountPage from './pages/VerifyAccountPage';
+import AdminPage from './pages/AdminPage';
 
 function ProtectedRoute({ children }) {
   const { token, loading } = useAuth();
@@ -40,6 +41,40 @@ function ProtectedRoute({ children }) {
 
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+function AdminRoute({ children }) {
+  const { token, loading, isAdmin } = useAuth();
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--bg)',
+          color: 'var(--text-muted)',
+          gap: '16px',
+        }}
+      >
+        <span className="spinner-lg" />
+        <p style={{ fontSize: '0.9rem' }}>Verifying administrator credentials...</p>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/files" replace />;
   }
 
   return children;
@@ -92,12 +127,22 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+
+              {/* Administrative Control Routes */}
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminPage />
+                  </AdminRoute>
+                }
+              />
               <Route
                 path="/signups"
                 element={
-                  <ProtectedRoute>
+                  <AdminRoute>
                     <SignupsPage />
-                  </ProtectedRoute>
+                  </AdminRoute>
                 }
               />
 
