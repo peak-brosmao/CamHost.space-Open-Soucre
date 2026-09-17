@@ -1,18 +1,64 @@
 // =============================================
 // CamHost.space — Coming Soon JS
+// Dark/Light Mode + Countdown + Animations
+// Developer: PEAK BROSMAO
 // =============================================
+
+// ── Theme Toggle ──
+(function initTheme() {
+  const btn  = document.getElementById('theme-toggle');
+  const root = document.documentElement;
+
+  // Determine initial theme: saved preference → system preference → dark
+  function getPreferred() {
+    const saved = localStorage.getItem('camhost-theme');
+    if (saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    localStorage.setItem('camhost-theme', theme);
+  }
+
+  // Apply on load (no transition flash)
+  root.style.setProperty('--theme-transition', 'none');
+  applyTheme(getPreferred());
+  // Re-enable transition after first paint
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      root.style.removeProperty('--theme-transition');
+    });
+  });
+
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') || 'dark';
+    const next    = current === 'dark' ? 'light' : 'dark';
+
+    // Spin animation
+    btn.classList.remove('spinning');
+    void btn.offsetWidth;
+    btn.classList.add('spinning');
+
+    applyTheme(next);
+  });
+
+  btn.addEventListener('animationend', () => {
+    btn.classList.remove('spinning');
+  });
+})();
 
 // ── Countdown Timer ──
 const LAUNCH_DATE = new Date('2027-01-01T00:00:00');
 
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
+function pad(n) { return String(n).padStart(2, '0'); }
 
 let prevVals = { days: -1, hours: -1, minutes: -1, seconds: -1 };
 
 function updateCountdown() {
-  const now = new Date();
+  const now  = new Date();
   const diff = Math.max(0, LAUNCH_DATE - now);
 
   const days    = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -21,20 +67,20 @@ function updateCountdown() {
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
   const fields = [
-    { id: 'cd-days',    val: days,    prev: 'days' },
-    { id: 'cd-hours',   val: hours,   prev: 'hours' },
-    { id: 'cd-minutes', val: minutes, prev: 'minutes' },
-    { id: 'cd-seconds', val: seconds, prev: 'seconds' },
+    { id: 'cd-days',    val: days,    key: 'days' },
+    { id: 'cd-hours',   val: hours,   key: 'hours' },
+    { id: 'cd-minutes', val: minutes, key: 'minutes' },
+    { id: 'cd-seconds', val: seconds, key: 'seconds' },
   ];
 
-  fields.forEach(({ id, val, prev }) => {
+  fields.forEach(({ id, val, key }) => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (prevVals[prev] !== val) {
+    if (prevVals[key] !== val) {
       el.classList.remove('flip');
-      void el.offsetWidth; // reflow
+      void el.offsetWidth;
       el.classList.add('flip');
-      prevVals[prev] = val;
+      prevVals[key] = val;
     }
     el.textContent = pad(val);
   });
@@ -50,11 +96,10 @@ function handleSignup(e) {
   const success = document.getElementById('signup-success');
   const btn     = document.getElementById('notify-btn');
 
-  btn.textContent = '✓ Done!';
+  btn.innerHTML = '✓ Done!';
   btn.style.background = 'linear-gradient(135deg, #00c97a, #00a060)';
   btn.disabled = true;
   form.reset();
-
   success.classList.add('visible');
 
   setTimeout(() => {
@@ -77,19 +122,20 @@ function handleSignup(e) {
     H = canvas.height = window.innerHeight;
   }
 
+  function isLight() {
+    return document.documentElement.getAttribute('data-theme') === 'light';
+  }
+
   function makeOrb() {
-    const colors = [
-      'rgba(0,212,255,',
-      'rgba(123,79,255,',
-      'rgba(0,119,255,',
-      'rgba(255,107,157,',
-    ];
-    const color = colors[Math.floor(Math.random() * colors.length)];
+    const darkColors  = ['rgba(0,212,255,', 'rgba(123,79,255,', 'rgba(0,119,255,', 'rgba(255,107,157,'];
+    const lightColors = ['rgba(0,150,255,', 'rgba(100,50,220,', 'rgba(0,100,255,', 'rgba(200,50,120,'];
+    const palette = isLight() ? lightColors : darkColors;
+    const color = palette[Math.floor(Math.random() * palette.length)];
     return {
       x: Math.random() * W,
       y: Math.random() * H,
       r: 120 + Math.random() * 220,
-      alpha: 0.04 + Math.random() * 0.06,
+      alpha: isLight() ? 0.06 + Math.random() * 0.06 : 0.04 + Math.random() * 0.06,
       vx: (Math.random() - 0.5) * 0.3,
       vy: (Math.random() - 0.5) * 0.3,
       color,
@@ -127,6 +173,11 @@ function handleSignup(e) {
   }
 
   window.addEventListener('resize', () => { resize(); initOrbs(); });
+
+  // Re-init orbs on theme change so colors update
+  const observer = new MutationObserver(() => initOrbs());
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
   resize();
   initOrbs();
   loop();
@@ -137,12 +188,11 @@ function handleSignup(e) {
   const container = document.getElementById('particles');
   if (!container) return;
 
-  const colors = ['#00d4ff', '#7b4fff', '#0077ff', '#ff6b9d', '#fff'];
+  const colors = ['#00d4ff', '#7b4fff', '#0077ff', '#ff6b9d', '#ffffff'];
 
   for (let i = 0; i < 28; i++) {
-    const p = document.createElement('div');
+    const p     = document.createElement('div');
     p.classList.add('particle');
-
     const size  = 2 + Math.random() * 4;
     const color = colors[Math.floor(Math.random() * colors.length)];
     const left  = Math.random() * 100;
@@ -158,12 +208,11 @@ function handleSignup(e) {
       animation-duration: ${dur}s;
       animation-delay: ${delay}s;
     `;
-
     container.appendChild(p);
   }
 })();
 
-// ── Intersection Observer: fade-in steps ──
+// ── Intersection Observer: fade-in ──
 (function initObserver() {
   const els = document.querySelectorAll('.hiw-step, .pill, .count-block');
   if (!els.length) return;
@@ -179,9 +228,9 @@ function handleSignup(e) {
   }, { threshold: 0.15 });
 
   els.forEach((el, i) => {
-    el.style.opacity = '0';
+    el.style.opacity   = '0';
     el.style.transform = 'translateY(20px)';
-    el.style.transition = `opacity 0.6s ease ${i * 0.07}s, transform 0.6s ease ${i * 0.07}s, border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease`;
+    el.style.transition = `opacity 0.6s ease ${i * 0.07}s, transform 0.6s ease ${i * 0.07}s, border-color 0.3s ease, box-shadow 0.3s ease, background 0.45s ease`;
     obs.observe(el);
   });
 })();
