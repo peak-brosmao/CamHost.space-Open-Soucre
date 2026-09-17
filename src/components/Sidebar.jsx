@@ -169,14 +169,15 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Plan & Storage Quota Widget */}
         <div
           style={{
-            margin: '12px 14px 10px',
-            padding: '12px 14px',
+            margin: '6px 10px 4px',
+            padding: '9px 12px',
             background: 'var(--surface-hover)',
             border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
+            borderRadius: 'var(--radius-sm)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px',
+            gap: '6px',
+            flexShrink: 0,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

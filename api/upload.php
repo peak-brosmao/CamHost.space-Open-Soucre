@@ -105,25 +105,45 @@ function handleUpload(): void {
 
     // ── Generate Instant Share Token & Save metadata to SQLite ──
     $shareToken = bin2hex(random_bytes(16));
-    try {
-        $stmt = db()->prepare('
-            INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description, is_public, share_token)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-        ');
-        $stmt->execute([
-            $user['id'],
-            $folderId,
-            $originalName,
-            $mimeType,
-            $sizeBytes,
-            $fileId,
-            $messageId,
-            $description ?: null,
-            $shareToken,
-        ]);
-    } catch (Throwable $e) {
-        error_log('[CamHost Upload Save Error] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
-        jsonError('Failed to save file metadata: ' . $e->getMessage(), 500);
+    $inserted = false;
+    $attempts = 0;
+    $lastErr = null;
+
+    while ($attempts < 6 && !$inserted) {
+        $attempts++;
+        try {
+            $stmt = db()->prepare('
+                INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description, is_public, share_token)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            ');
+            $stmt->execute([
+                $user['id'],
+                $folderId,
+                $originalName,
+                $mimeType,
+                $sizeBytes,
+                $fileId,
+                $messageId,
+                $description ?: null,
+                $shareToken,
+            ]);
+            $inserted = true;
+        } catch (PDOException $e) {
+            $lastErr = $e;
+            if (str_contains($e->getMessage(), 'database is locked') && $attempts < 6) {
+                usleep(250000); // Wait 250ms and retry
+                continue;
+            }
+            break;
+        } catch (Throwable $e) {
+            $lastErr = $e;
+            break;
+        }
+    }
+
+    if (!$inserted && $lastErr) {
+        error_log('[CamHost Upload Save Error] ' . $lastErr->getMessage());
+        jsonError('Failed to save file metadata: ' . $lastErr->getMessage(), 500);
     }
 
     $newId = db()->lastInsertId();

@@ -20,15 +20,31 @@ function db(): PDO {
         mkdir($dbDir, 0755, true);
     }
 
-    $pdo = new PDO('sqlite:' . DB_PATH);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE,            PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    $pdo = new PDO('sqlite:' . DB_PATH, null, null, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_TIMEOUT            => 60, // Wait up to 60 seconds if database is busy
+    ]);
 
-    // Enable WAL mode for better concurrency
-    $pdo->exec('PRAGMA journal_mode=WAL');
-    $pdo->exec('PRAGMA foreign_keys=ON');
+    // SQLite Concurrency & Anti-Lock Settings
+    $pdo->exec('PRAGMA journal_mode=WAL;');
+    $pdo->exec('PRAGMA busy_timeout=60000;');
+    $pdo->exec('PRAGMA synchronous=NORMAL;');
+    $pdo->exec('PRAGMA foreign_keys=ON;');
 
-    migrate($pdo);
+    // Only run schema migrations on first launch or if users table missing
+    static $migrated = false;
+    if (!$migrated) {
+        $migrated = true;
+        try {
+            $hasUsers = $pdo->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='users' LIMIT 1")->fetchColumn();
+            if (!$hasUsers) {
+                migrate($pdo);
+            }
+        } catch (Exception $e) {
+            migrate($pdo);
+        }
+    }
 
     return $pdo;
 }
