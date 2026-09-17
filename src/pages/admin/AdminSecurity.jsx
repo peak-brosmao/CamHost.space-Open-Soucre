@@ -64,7 +64,7 @@ export default function AdminSecurity() {
 
       {/* Audit Logs */}
       {activeTab === 'audit' && (
-        <div className="glass-card admin-table-card">
+        <div className="admin-card admin-table-card">
           {loading ? <div className="admin-loading"><span className="spinner-lg" /></div> : (
             <div style={{ overflowX: 'auto' }}>
               <table className="admin-table">
@@ -81,7 +81,7 @@ export default function AdminSecurity() {
                 <tbody>
                   {auditLogs.map(log => (
                     <tr key={log.id}>
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--adm-muted)', fontSize: '0.8rem' }}>
                         {new Date(log.created_at).toLocaleString()}
                       </td>
                       <td style={{ fontWeight: 600, fontSize: '0.875rem' }}>{log.admin_email || 'System'}</td>
@@ -90,11 +90,11 @@ export default function AdminSecurity() {
                           {log.action}
                         </span>
                       </td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: '0.83rem' }}>
+                      <td style={{ color: 'var(--adm-muted)', fontSize: '0.83rem' }}>
                         {log.target_type ? `${log.target_type} #${log.target_id}` : '—'}
                       </td>
                       <td style={{ fontSize: '0.83rem', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.details || '—'}</td>
-                      <td style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{log.ip_address}</td>
+                      <td style={{ fontFamily: 'monospace', color: 'var(--adm-muted)', fontSize: '0.8rem' }}>{log.ip_address}</td>
                     </tr>
                   ))}
                   {auditLogs.length === 0 && (
@@ -109,7 +109,7 @@ export default function AdminSecurity() {
 
       {/* Coming-soon scaffolded tabs */}
       {activeTab !== 'audit' && (
-        <div className="glass-card admin-card">
+        <div className="admin-card">
           <div className="admin-scaffold-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ opacity: 0.3 }}>
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>

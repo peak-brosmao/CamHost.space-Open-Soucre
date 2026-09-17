@@ -99,7 +99,7 @@ export default function AdminFiles() {
       </div>
 
       {/* Table */}
-      <div className="glass-card admin-table-card">
+      <div className="admin-card admin-table-card">
         {loading ? (
           <div className="admin-loading"><span className="spinner-lg" /></div>
         ) : (
@@ -121,14 +121,14 @@ export default function AdminFiles() {
                   <tr key={f.id}>
                     <td>
                       <div style={{ fontWeight: 600, fontSize: '0.875rem', wordBreak: 'break-all' }}>{f.original_name}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.73rem', fontFamily: 'monospace' }}>
+                      <div style={{ color: 'var(--adm-muted)', fontSize: '0.73rem', fontFamily: 'monospace' }}>
                         {f.telegram_file_id ? f.telegram_file_id.substring(0, 22) + '…' : 'No TG ID'}
                       </div>
                     </td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{f.owner_email}</td>
+                    <td style={{ color: 'var(--adm-muted)', fontSize: '0.85rem' }}>{f.owner_email}</td>
                     <td style={{ fontVariantNumeric: 'tabular-nums' }}>{formatBytes(f.size_bytes)}</td>
                     <td>{f.downloads || 0}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ color: 'var(--adm-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                       {f.created_at ? new Date(f.created_at).toLocaleDateString() : '—'}
                     </td>
                     <td>

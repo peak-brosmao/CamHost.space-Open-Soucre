@@ -13,7 +13,7 @@ const formatBytes = (b) => {
 function Modal({ title, subtitle, onClose, children }) {
   return (
     <div className="admin-modal-overlay" onClick={onClose}>
-      <div className="admin-modal glass-card" onClick={e => e.stopPropagation()}>
+      <div className="admin-modal" onClick={e => e.stopPropagation()}>
         <div className="admin-modal-header">
           <div>
             <h3 className="admin-modal-title">{title}</h3>
@@ -135,7 +135,7 @@ export default function AdminUsers() {
       </div>
 
       {/* Table */}
-      <div className="glass-card admin-table-card">
+      <div className="admin-card admin-table-card">
         {loading ? (
           <div className="admin-loading"><span className="spinner-lg" /></div>
         ) : (
@@ -160,7 +160,7 @@ export default function AdminUsers() {
                         <div className="admin-user-mini-avatar">{(u.display_name || u.email || '?').charAt(0).toUpperCase()}</div>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{u.display_name || 'No Name'}</div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{u.email}</div>
+                          <div style={{ color: 'var(--adm-muted)', fontSize: '0.78rem' }}>{u.email}</div>
                         </div>
                       </div>
                     </td>

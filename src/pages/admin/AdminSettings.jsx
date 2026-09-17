@@ -45,7 +45,7 @@ function CheckField({ label, checked, onChange }) {
 
 function ScaffoldCard({ title, children }) {
   return (
-    <div className="glass-card admin-card">
+    <div className="admin-card">
       <h3 className="admin-card-title" style={{ marginBottom: 16 }}>{title}</h3>
       <div className="admin-scaffold-empty" style={{ padding: '20px 0' }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32" style={{ opacity: 0.25 }}>
@@ -114,7 +114,7 @@ export default function AdminSettings() {
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title">{currentSection.label}</h1>
-          <p className="admin-page-desc" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <p className="admin-page-desc" style={{ color: 'var(--adm-muted)', fontSize: '0.85rem' }}>
             {currentSection.group}
           </p>
         </div>
@@ -123,7 +123,7 @@ export default function AdminSettings() {
       {/* General Settings */}
       {section === 'general' && (
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
-          <div className="glass-card admin-card">
+          <div className="admin-card">
             <h3 className="admin-card-title">Platform Identity</h3>
             <Field label="Platform Name">
               <input type="text" className="input-field" value={settings.site_name || ''} onChange={e => set('site_name', e.target.value)} />
@@ -132,7 +132,7 @@ export default function AdminSettings() {
               <textarea className="input-field" rows={2} value={settings.site_description || ''} onChange={e => set('site_description', e.target.value)} />
             </Field>
           </div>
-          <div className="glass-card admin-card">
+          <div className="admin-card">
             <h3 className="admin-card-title">Storage Defaults</h3>
             <Field label="Default User Quota (MB)" hint="Applies to newly registered users.">
               <input type="number" className="input-field" value={settings.default_storage_quota_mb || ''} onChange={e => set('default_storage_quota_mb', e.target.value)} />
@@ -149,7 +149,7 @@ export default function AdminSettings() {
       {/* Advanced Settings */}
       {section === 'advanced' && (
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
-          <div className="glass-card admin-card">
+          <div className="admin-card">
             <h3 className="admin-card-title">Upload Governance</h3>
             <Field label="Maximum Upload Size (MB)">
               <input type="number" className="input-field" value={settings.max_upload_size_mb || ''} onChange={e => set('max_upload_size_mb', e.target.value)} />
@@ -172,7 +172,7 @@ export default function AdminSettings() {
       {/* Maintenance Mode */}
       {section === 'maintenance' && (
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
-          <div className="glass-card admin-card" style={{ border: settings.maintenance_mode === '1' ? '1px solid rgba(255,170,0,0.4)' : undefined }}>
+          <div className="admin-card" style={{ border: settings.maintenance_mode === '1' ? '1px solid var(--adm-amber)' : undefined }}>
             <h3 className="admin-card-title">Maintenance Mode</h3>
             {settings.maintenance_mode === '1' && (
               <div className="admin-alert-banner warning" style={{ marginBottom: 16 }}>
@@ -199,9 +199,9 @@ export default function AdminSettings() {
       {/* Cache Control — wired */}
       {section === 'cache' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
-          <div className="glass-card admin-card">
+          <div className="admin-card">
             <h3 className="admin-card-title">Cache Control</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: 20 }}>
+            <p style={{ color: 'var(--adm-muted)', fontSize: '0.875rem', marginBottom: 20 }}>
               Flush the rate-limit counter cache and security transient data. This does <em>not</em> delete any user files or settings.
             </p>
             <button className="btn-danger" style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={handlePurgeCache}>

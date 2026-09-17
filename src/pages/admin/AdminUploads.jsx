@@ -2,13 +2,13 @@ import React from 'react';
 
 function ScaffoldSection({ title, items }) {
   return (
-    <div className="glass-card admin-card">
+    <div className="admin-card">
       <h3 className="admin-card-title" style={{ marginBottom: 16 }}>{title}</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {items.map(item => (
           <div key={item} className="admin-scaffold-row">
             <span className="admin-scaffold-dot" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{item}</span>
+            <span style={{ fontSize: '0.875rem', color: 'var(--adm-text)' }}>{item}</span>
             <span className="admin-badge neutral" style={{ marginLeft: 'auto' }}>Coming Soon</span>
           </div>
         ))}
@@ -46,10 +46,10 @@ export default function AdminUploads() {
         />
 
         {/* These settings ARE wired to the existing settings API */}
-        <div className="glass-card admin-card">
+        <div className="admin-card">
           <h3 className="admin-card-title" style={{ marginBottom: 4 }}>Upload Policy Settings</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-            Configure these in <a href="/admin/settings/general" style={{ color: 'var(--cyan)' }}>Platform Core → General Settings</a>
+          <p style={{ fontSize: '0.8rem', color: 'var(--adm-muted)', marginBottom: 16 }}>
+            Configure these in <a href="/admin/settings/general" style={{ color: 'var(--adm-indigo)' }}>Platform Core → General Settings</a>
           </p>
           <div className="admin-scaffold-row">
             <span className="admin-scaffold-dot" style={{ background: '#00e08b' }} />

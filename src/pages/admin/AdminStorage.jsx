@@ -2,13 +2,13 @@ import React from 'react';
 
 function ScaffoldSection({ title, items }) {
   return (
-    <div className="glass-card admin-card">
+    <div className="admin-card">
       <h3 className="admin-card-title" style={{ marginBottom: 16 }}>{title}</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {items.map(item => (
           <div key={item} className="admin-scaffold-row">
             <span className="admin-scaffold-dot" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{item}</span>
+            <span style={{ fontSize: '0.875rem', color: 'var(--adm-text)' }}>{item}</span>
             <span className="admin-badge neutral" style={{ marginLeft: 'auto' }}>Coming Soon</span>
           </div>
         ))}

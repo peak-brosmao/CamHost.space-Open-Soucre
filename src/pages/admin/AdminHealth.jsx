@@ -20,7 +20,7 @@ function HealthBadge({ ok, label }) {
 function HealthCard({ title, status, children }) {
   const ok = status === 'healthy' || status === 'connected' || status === 'ok';
   return (
-    <div className="glass-card admin-card">
+    <div className="admin-card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h3 className="admin-card-title" style={{ margin: 0 }}>{title}</h3>
         <HealthBadge ok={ok} label={status?.toUpperCase()} />
@@ -68,7 +68,7 @@ export default function AdminHealth() {
       {loading ? (
         <div className="admin-loading"><span className="spinner-lg" /><p>Probing server health…</p></div>
       ) : !health ? (
-        <div className="glass-card admin-card admin-scaffold-empty">
+        <div className="admin-card admin-scaffold-empty">
           <p>Health data unavailable.</p>
         </div>
       ) : (
@@ -76,55 +76,55 @@ export default function AdminHealth() {
           {/* Database */}
           <HealthCard title="Database Connection" status={health.database?.status}>
             <div className="admin-env-grid">
-              <div className="admin-env-item"><span className="admin-env-label">Engine</span><strong>{health.database?.driver ?? '—'}</strong></div>
-              <div className="admin-env-item"><span className="admin-env-label">Query Latency</span><strong>{health.database?.latency_ms ?? '—'} ms</strong></div>
+              <div className="admin-env-item"><span className="admin-env-label">Engine</span><strong className="admin-env-val">{health.database?.driver ?? '—'}</strong></div>
+              <div className="admin-env-item"><span className="admin-env-label">Query Latency</span><strong className="admin-env-val">{health.database?.latency_ms ?? '—'} ms</strong></div>
             </div>
           </HealthCard>
 
           {/* Telegram API */}
           <HealthCard title="Telegram Cloud Infrastructure" status={health.telegram_api?.status}>
             <div className="admin-env-grid">
-              <div className="admin-env-item"><span className="admin-env-label">Bot Handle</span><strong>@{health.telegram_api?.bot_username || 'Not Detected'}</strong></div>
-              <div className="admin-env-item"><span className="admin-env-label">API Latency</span><strong>{health.telegram_api?.latency_ms ?? '—'} ms</strong></div>
+              <div className="admin-env-item"><span className="admin-env-label">Bot Handle</span><strong className="admin-env-val">@{health.telegram_api?.bot_username || 'Not Detected'}</strong></div>
+              <div className="admin-env-item"><span className="admin-env-label">API Latency</span><strong className="admin-env-val">{health.telegram_api?.latency_ms ?? '—'} ms</strong></div>
             </div>
           </HealthCard>
 
           {/* Server Resources */}
-          <div className="glass-card admin-card">
+          <div className="admin-card">
             <h3 className="admin-card-title">Host Server Resources</h3>
             <div className="admin-env-grid" style={{ marginTop: 12 }}>
               <div className="admin-env-item">
                 <span className="admin-env-label">Free Disk Space</span>
-                <strong>{health.system?.disk_free_bytes ? formatBytes(health.system.disk_free_bytes) : 'Shared Host'}</strong>
+                <strong className="admin-env-val">{health.system?.disk_free_bytes ? formatBytes(health.system.disk_free_bytes) : 'Shared Host'}</strong>
               </div>
               <div className="admin-env-item">
                 <span className="admin-env-label">Memory Used by Script</span>
-                <strong>{health.system?.memory_usage_mb ?? '—'} MB</strong>
+                <strong className="admin-env-val">{health.system?.memory_usage_mb ?? '—'} MB</strong>
               </div>
               <div className="admin-env-item">
                 <span className="admin-env-label">PHP Max Upload</span>
-                <strong>{health.system?.upload_max_filesize ?? '—'}</strong>
+                <strong className="admin-env-val">{health.system?.upload_max_filesize ?? '—'}</strong>
               </div>
               <div className="admin-env-item">
                 <span className="admin-env-label">PHP Post Max Size</span>
-                <strong>{health.system?.post_max_size ?? '—'}</strong>
+                <strong className="admin-env-val">{health.system?.post_max_size ?? '—'}</strong>
               </div>
               <div className="admin-env-item">
                 <span className="admin-env-label">PHP Version</span>
-                <strong>v{health.system?.php_version ?? '—'}</strong>
+                <strong className="admin-env-val">v{health.system?.php_version ?? '—'}</strong>
               </div>
               <div className="admin-env-item">
                 <span className="admin-env-label">Operating System</span>
-                <strong>{health.system?.os ?? '—'}</strong>
+                <strong className="admin-env-val">{health.system?.os ?? '—'}</strong>
               </div>
             </div>
           </div>
 
           {/* Queue Worker / Failed Jobs */}
-          <div className="glass-card admin-card">
+          <div className="admin-card">
             <h3 className="admin-card-title">Queue & Failed Jobs</h3>
             <div className="admin-scaffold-empty" style={{ padding: '20px 0' }}>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--adm-muted)' }}>
                 Queue worker status and failed job listing will be available once the queue API endpoint is configured.
               </p>
             </div>

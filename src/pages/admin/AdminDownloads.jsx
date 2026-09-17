@@ -2,13 +2,13 @@ import React from 'react';
 
 function ScaffoldSection({ title, items }) {
   return (
-    <div className="glass-card admin-card">
+    <div className="admin-card">
       <h3 className="admin-card-title" style={{ marginBottom: 16 }}>{title}</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {items.map(item => (
           <div key={item} className="admin-scaffold-row">
             <span className="admin-scaffold-dot" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{item}</span>
+            <span style={{ fontSize: '0.875rem', color: 'var(--adm-text)' }}>{item}</span>
             <span className="admin-badge neutral" style={{ marginLeft: 'auto' }}>Coming Soon</span>
           </div>
         ))}
@@ -46,17 +46,17 @@ export default function AdminDownloads() {
         />
 
         {/* Shared Link Management */}
-        <div className="glass-card admin-card">
+        <div className="admin-card">
           <h3 className="admin-card-title" style={{ marginBottom: 16 }}>Shared Link Management</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             {[
-              { label: 'Active Links', color: '#00e08b' },
-              { label: 'Expired Links', color: 'var(--text-muted)' },
-              { label: 'Disabled Links', color: '#ff4d6d' },
-              { label: 'Password-Protected', color: '#7b4fff' },
+              { label: 'Active Links', color: '#10b981' },
+              { label: 'Expired Links', color: 'var(--adm-muted)' },
+              { label: 'Disabled Links', color: '#f43f5e' },
+              { label: 'Password-Protected', color: '#8b5cf6' },
             ].map(({ label, color }) => (
-              <div key={label} className="admin-mini-stat glass-card" style={{ padding: '16px', gap: 8 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{label}</span>
+              <div key={label} className="admin-mini-stat" style={{ padding: '16px', gap: 8 }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--adm-muted)' }}>{label}</span>
                 <strong style={{ color, fontSize: '1.5rem' }}>—</strong>
                 <span className="admin-badge neutral">Coming Soon</span>
               </div>

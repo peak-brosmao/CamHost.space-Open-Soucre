@@ -15,9 +15,9 @@ function StatCard({ label, value, sub, color, icon }) {
   return (
     <div className="admin-stat-card">
       <div className="admin-stat-icon" style={{ background: color + '18', color }}>{icon}</div>
-      <div>
+      <div className="admin-stat-body">
         <p className="admin-stat-label">{label}</p>
-        <h2 className="admin-stat-value" style={{ color }}>{value}</h2>
+        <h2 className="admin-stat-value">{value}</h2>
         {sub && <p className="admin-stat-sub">{sub}</p>}
       </div>
     </div>
@@ -150,110 +150,124 @@ export default function AdminDashboard() {
 
       <div className="admin-dashboard-grid">
         {/* System Status */}
-        <div className="glass-card admin-card">
-          <h3 className="admin-card-title">System Status</h3>
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h3 className="admin-card-title">System Status</h3>
+            <span className="admin-card-badge status">Live Health</span>
+          </div>
           <div className="admin-status-list">
             <div className="admin-status-item">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="admin-status-item-left">
                 <StatusDot ok={health?.database?.status === 'healthy'} />
-                <span>Database Connection</span>
+                <span className="admin-status-name">Database Connection</span>
               </div>
-              <span className="admin-status-value">
+              <span className={`admin-status-value ${health?.database?.status === 'healthy' ? 'ok' : 'err'}`}>
                 {health?.database?.status ?? 'Unknown'} {health?.database?.latency_ms ? `· ${health.database.latency_ms}ms` : ''}
               </span>
             </div>
             <div className="admin-status-item">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="admin-status-item-left">
                 <StatusDot ok={health?.telegram_api?.status === 'connected'} />
-                <span>Telegram API</span>
+                <span className="admin-status-name">Telegram API</span>
               </div>
-              <span className="admin-status-value">
+              <span className={`admin-status-value ${health?.telegram_api?.status === 'connected' ? 'ok' : 'err'}`}>
                 {health?.telegram_api?.status ?? 'Unknown'} {health?.telegram_api?.latency_ms ? `· ${health.telegram_api.latency_ms}ms` : ''}
               </span>
             </div>
             <div className="admin-status-item">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="admin-status-item-left">
                 <StatusDot ok={!ov.maintenance_mode} />
-                <span>Platform Availability</span>
+                <span className="admin-status-name">Platform Availability</span>
               </div>
-              <span className="admin-status-value">{ov.maintenance_mode ? 'Maintenance Mode' : 'Operational'}</span>
+              <span className={`admin-status-value ${!ov.maintenance_mode ? 'ok' : 'warn'}`}>
+                {ov.maintenance_mode ? 'Maintenance Mode' : 'Operational'}
+              </span>
             </div>
             <div className="admin-status-item">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="admin-status-item-left">
                 <StatusDot ok={true} />
-                <span>Admin Panel</span>
+                <span className="admin-status-name">Admin Panel</span>
               </div>
-              <span className="admin-status-value">Online</span>
+              <span className="admin-status-value ok">Online</span>
             </div>
           </div>
         </div>
 
         {/* Runtime Environment */}
-        <div className="glass-card admin-card">
-          <h3 className="admin-card-title">Runtime Environment</h3>
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h3 className="admin-card-title">Runtime Environment</h3>
+            <span className="admin-card-badge env">Server Info</span>
+          </div>
           <div className="admin-env-grid">
             <div className="admin-env-item">
               <span className="admin-env-label">PHP Engine</span>
-              <strong>v{srv.php_version ?? '—'}</strong>
+              <strong className="admin-env-val">v{srv.php_version ?? '—'}</strong>
             </div>
             <div className="admin-env-item">
               <span className="admin-env-label">Operating System</span>
-              <strong>{srv.os ?? '—'}</strong>
+              <strong className="admin-env-val">{srv.os ?? '—'}</strong>
             </div>
             <div className="admin-env-item">
               <span className="admin-env-label">Memory Allocated</span>
-              <strong>{srv.memory_used_mb ?? '—'} MB</strong>
+              <strong className="admin-env-val">{srv.memory_used_mb ?? '—'} MB</strong>
             </div>
             <div className="admin-env-item">
               <span className="admin-env-label">Web Server</span>
-              <strong>{srv.server_software ?? '—'}</strong>
+              <strong className="admin-env-val">{srv.server_software ?? '—'}</strong>
             </div>
             <div className="admin-env-item">
               <span className="admin-env-label">Disk Space Free</span>
-              <strong>{health?.system?.disk_free_bytes ? formatBytes(health.system.disk_free_bytes) : 'Shared Host'}</strong>
+              <strong className="admin-env-val">{health?.system?.disk_free_bytes ? formatBytes(health.system.disk_free_bytes) : 'Shared Host'}</strong>
             </div>
             <div className="admin-env-item">
               <span className="admin-env-label">Telegram Bot</span>
-              <strong>@{health?.telegram_api?.bot_username ?? '—'}</strong>
+              <strong className="admin-env-val">@{health?.telegram_api?.bot_username ?? '—'}</strong>
             </div>
           </div>
         </div>
 
         {/* Storage Usage Bar */}
-        <div className="glass-card admin-card">
-          <h3 className="admin-card-title">Storage Usage</h3>
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: 8, color: 'var(--text-muted)' }}>
-              <span>{formatBytes(ov.total_storage_bytes)} used</span>
-              <span>Telegram Cloud (Unlimited)</span>
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h3 className="admin-card-title">Storage Usage</h3>
+            <span className="admin-card-badge storage">Telegram Engine</span>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <div className="admin-storage-header-row">
+              <span className="admin-storage-used-text">{formatBytes(ov.total_storage_bytes)} used</span>
+              <span className="admin-storage-unlimited">Telegram Cloud (Unlimited)</span>
             </div>
             <div className="admin-progress-track">
-              <div className="admin-progress-bar" style={{ width: '100%', background: 'linear-gradient(90deg, #00d4ff, #7b4fff)' }} />
+              <div className="admin-progress-bar" style={{ width: '100%', background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+            <div className="admin-storage-stat-grid">
               <div className="admin-mini-stat">
-                <span className="admin-env-label">Total Files</span>
-                <strong style={{ color: '#7b4fff' }}>{ov.total_files ?? 0}</strong>
+                <span className="admin-mini-stat-label">Total Files</span>
+                <strong className="admin-mini-stat-val files">{ov.total_files ?? 0}</strong>
               </div>
               <div className="admin-mini-stat">
-                <span className="admin-env-label">Blocked Files</span>
-                <strong style={{ color: '#ff4d6d' }}>{ov.blocked_files ?? 0}</strong>
+                <span className="admin-mini-stat-label">Blocked Files</span>
+                <strong className="admin-mini-stat-val blocked">{ov.blocked_files ?? 0}</strong>
               </div>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="glass-card admin-card">
-          <h3 className="admin-card-title">Quick Actions</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+        <div className="admin-card">
+          <div className="admin-card-header">
+            <h3 className="admin-card-title">Quick Actions</h3>
+            <span className="admin-card-badge actions">Shortcuts</span>
+          </div>
+          <div className="admin-quick-action-list">
             {[
-              { label: 'Manage Users', path: '/admin/users', color: '#00d4ff' },
-              { label: 'View All Files', path: '/admin/files', color: '#7b4fff' },
-              { label: 'Storage Health', path: '/admin/storage', color: '#00e08b' },
-              { label: 'Audit Logs', path: '/admin/security', color: '#ffab2e' },
-              { label: 'System Health', path: '/admin/health', color: '#ff6b9d' },
-              { label: 'Platform Settings', path: '/admin/settings/general', color: '#0077ff' },
+              { label: 'Manage Users', path: '/admin/users', color: '#6366f1' },
+              { label: 'View All Files', path: '/admin/files', color: '#8b5cf6' },
+              { label: 'Storage Health', path: '/admin/storage', color: '#10b981' },
+              { label: 'Audit Logs', path: '/admin/security', color: '#f59e0b' },
+              { label: 'System Health', path: '/admin/health', color: '#06b6d4' },
+              { label: 'Platform Settings', path: '/admin/settings/general', color: '#3b82f6' },
             ].map(({ label, path, color }) => (
               <button
                 key={path}
@@ -262,7 +276,7 @@ export default function AdminDashboard() {
                 onClick={() => navigate(path)}
               >
                 <span className="admin-qa-dot" style={{ background: color }} />
-                {label}
+                <span>{label}</span>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13" style={{ marginLeft: 'auto', opacity: 0.5 }}>
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
