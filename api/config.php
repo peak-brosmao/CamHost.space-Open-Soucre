@@ -81,7 +81,7 @@ define('ADMIN_PASSWORD', env('ADMIN_PASSWORD', 'changeme123'));
 define('DB_PATH', env('DB_PATH', __DIR__ . '/../data/camhost.db'));
 
 // ── Upload Limit ──
-define('UPLOAD_MAX_MB', TELEGRAM_LOCAL_MODE ? 2000 : 50);
+define('UPLOAD_MAX_MB', (int)env('UPLOAD_MAX_MB', TELEGRAM_LOCAL_MODE ? 2000 : 50));
 
 // ── cURL Timeouts ──
 define('CURL_UPLOAD_TIMEOUT',  TELEGRAM_LOCAL_MODE ? 3600 : 120);

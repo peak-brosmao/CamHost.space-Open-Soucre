@@ -44,7 +44,11 @@ function handleUpload(): void {
     // Size check
     $maxBytes = UPLOAD_MAX_MB * 1024 * 1024;
     if ($f['size'] > $maxBytes) {
-        jsonError('File too large. Max allowed: ' . UPLOAD_MAX_MB . ' MB', 413);
+        $humanSize = formatBytes($f['size']);
+        $helpNote = TELEGRAM_LOCAL_MODE
+            ? "Max allowed: " . UPLOAD_MAX_MB . " MB."
+            : "Telegram Cloud Bot API limits uploads to " . UPLOAD_MAX_MB . " MB. To upload larger files (up to 2 GB), set TELEGRAM_LOCAL_MODE=true in api/.env with a local Telegram Bot API server.";
+        jsonError("File too large ({$humanSize}). {$helpNote}", 413);
     }
 
     $originalName = basename($f['name']);
@@ -78,6 +82,9 @@ function handleUpload(): void {
         }
         if (str_contains(strtolower($desc), 'chat not found') || str_contains(strtolower($desc), 'chat_write_forbidden')) {
             jsonError('Telegram Channel error: ' . $desc . '. Please make sure your bot is added as an Administrator to your channel with Post permissions.', 502);
+        }
+        if (str_contains(strtolower($desc), 'file is too big') || str_contains(strtolower($desc), 'request entity too large')) {
+            jsonError('Telegram Bot API rejected file: Cloud Bot API limits uploads to 50 MB. To upload up to 2 GB, enable TELEGRAM_LOCAL_MODE=true in api/.env with a local Telegram Bot API server.', 413);
         }
         jsonError('Telegram upload failed: ' . $desc, 502);
     }
