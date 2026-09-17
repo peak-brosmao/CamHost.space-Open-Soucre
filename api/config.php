@@ -7,8 +7,8 @@
 // ── Telegram Bot Settings ──
 // Get your token from @BotFather on Telegram
 // Get your Chat ID by forwarding a message to @userinfobot
-define('TELEGRAM_BOT_TOKEN', '8984355230:AAHtZHcEl2mkOlnpguj8gVz3mQe2uHRC2-I');
-define('TELEGRAM_CHAT_ID',   '8281769034');
+define('TELEGRAM_BOT_TOKEN', '');
+define('TELEGRAM_CHAT_ID',   '');
 
 // ── Telegram API Mode ──────────────────────────────────────────────────────
 //
