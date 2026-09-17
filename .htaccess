@@ -1,5 +1,5 @@
 # Apache .htaccess — camhost.space FRONTEND
-# Static site SPA rewrite to dist/ for Apache & LiteSpeed (Hostinger)
+# Static site SPA for Apache & LiteSpeed (Hostinger)
 
 Options -Indexes
 
@@ -28,26 +28,12 @@ Options -Indexes
     AddOutputFilterByType DEFLATE text/html text/css application/javascript
 </IfModule>
 
-# ── SPA Routing & Dist Fallback ──────────────────────────────────
+# ── Standard SPA Fallback ────────────────────────────────────────
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
-
-    # Exclude API endpoints if hosted under /api
-    RewriteRule ^api/ - [L]
-
-    # Map root /assets/* to /dist/assets/*
-    RewriteRule ^assets/(.*)$ dist/assets/$1 [L,QSA]
-
-    # Always rewrite homepage and root index.html to dist/index.html
-    RewriteRule ^$ dist/index.html [L]
-    RewriteRule ^index\.html$ dist/index.html [L]
-
-    # If the requested file is an actual static asset (logo, favicon, etc.), serve it
-    RewriteCond %{REQUEST_URI} !^/index\.html$
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^ - [L]
-
-    # Route all SPA paths (/login, /register, /files, /folders, /upload, /settings, /share/*) to dist/index.html
-    RewriteRule ^(.*)$ dist/index.html [L]
+    RewriteRule ^index\.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
 </IfModule>
