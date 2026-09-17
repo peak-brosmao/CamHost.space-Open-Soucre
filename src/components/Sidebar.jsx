@@ -128,28 +128,38 @@ export default function Sidebar({ isOpen, onClose }) {
     <>
       {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
       <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
-        <Link to="/files" className="sidebar-logo-link" style={{ textDecoration: 'none' }}>
-          <div className="sidebar-logo-mark">
-            <svg viewBox="0 0 32 32" fill="none" width="22" height="22">
-              <path
-                d="M4 8a4 4 0 0 1 4-4h4.586a2 2 0 0 1 1.414.586l2.828 2.828A2 2 0 0 0 18.243 8H24a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8z"
-                fill="url(#logo-grad)"
-              />
-              <defs>
-                <linearGradient id="logo-grad" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#00d4ff" />
-                  <stop offset="1" stopColor="#0077ff" />
-                </linearGradient>
-              </defs>
+        <div className="sidebar-header">
+          <Link to="/files" className="sidebar-logo" onClick={onClose}>
+            <div className="sidebar-logo-icon">
+              <svg viewBox="0 0 40 40" fill="none" width="22" height="22">
+                <path
+                  d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z"
+                  fill="url(#sb-logo-grad)"
+                />
+                <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95" />
+                <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8" />
+                <defs>
+                  <linearGradient id="sb-logo-grad" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#00d4ff" />
+                    <stop offset="1" stopColor="#0077ff" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div className="sidebar-logo-text">
+              <span className="sidebar-brand">
+                CamHost<span className="sidebar-dot">.space</span>
+              </span>
+              <span className="sidebar-tag">File Manager</span>
+            </div>
+          </Link>
+          <button className="sidebar-close-btn" onClick={onClose} aria-label="Close sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </div>
-          <div>
-            <span className="sidebar-brand">
-              CamHost<span className="sidebar-dot">.space</span>
-            </span>
-            <span className="sidebar-tag">File Manager</span>
-          </div>
-        </Link>
+          </button>
+        </div>
 
         <nav className="sidebar-nav">
           <span className="nav-section-label">Storage</span>

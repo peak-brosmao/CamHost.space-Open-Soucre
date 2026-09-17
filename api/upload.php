@@ -194,6 +194,12 @@ function handleUpload(): void {
     $attempts = 0;
     $lastErr = null;
 
+    // Default to private (is_public = 0) unless explicitly passed as public
+    $isPublic = 0;
+    if (isset($_POST['is_public'])) {
+        $isPublic = (filter_var($_POST['is_public'], FILTER_VALIDATE_BOOLEAN) || (int)$_POST['is_public'] === 1) ? 1 : 0;
+    }
+
     $newId = null;
     while ($attempts < 15 && !$inserted) {
         $attempts++;
@@ -201,7 +207,7 @@ function handleUpload(): void {
             $pdo = db();
             $stmt = $pdo->prepare('
                 INSERT INTO files (user_id, folder_id, original_name, mime_type, size_bytes, telegram_file_id, message_id, description, is_public, share_token)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ');
             $stmt->execute([
                 $user['id'],
@@ -212,6 +218,7 @@ function handleUpload(): void {
                 $fileId,
                 $messageId,
                 $description ?: null,
+                $isPublic,
                 $shareToken,
             ]);
             $newId = (int)$pdo->lastInsertId();
@@ -254,7 +261,7 @@ function handleUpload(): void {
             'size_bytes'    => $sizeBytes,
             'size_human'    => formatBytes($sizeBytes),
             'downloads'     => 0,
-            'is_public'     => 1,
+            'is_public'     => $isPublic,
             'share_token'   => $shareToken,
             'share_url'     => $shareUrl,
             'description'   => $description ?: null,

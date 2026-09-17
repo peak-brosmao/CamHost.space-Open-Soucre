@@ -258,24 +258,32 @@ export default function AdminSidebar({ isOpen, onClose }) {
       <aside className={`admin-sidebar ${isOpen ? 'open' : ''}`} id="admin-sidebar">
         {/* Header */}
         <div className="admin-sidebar-header">
-          <Link to="/admin/dashboard" className="admin-sidebar-logo" onClick={onClose}>
-            <div className="admin-sidebar-logo-icon">
-              <svg viewBox="0 0 40 40" fill="none" width="18" height="18">
-                <path d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z" fill="url(#asl)"/>
-                <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95"/>
-                <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8"/>
-                <defs>
-                  <linearGradient id="asl" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#00d4ff"/><stop offset="1" stopColor="#7b4fff"/>
-                  </linearGradient>
-                </defs>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '8px' }}>
+            <Link to="/admin/dashboard" className="admin-sidebar-logo" onClick={onClose} style={{ marginBottom: 0 }}>
+              <div className="admin-sidebar-logo-icon">
+                <svg viewBox="0 0 40 40" fill="none" width="18" height="18">
+                  <path d="M20 5C12.268 5 6 11.268 6 19c0 4.418 2.015 8.374 5.195 11H8a1 1 0 000 2h24a1 1 0 000-2h-3.195C31.985 27.374 34 23.418 34 19c0-7.732-6.268-14-14-14z" fill="url(#asl)"/>
+                  <path d="M26.5 16.5L18 20l-4-1.5 12.5-4.5v2.5z" fill="white" opacity=".95"/>
+                  <path d="M18 20l2 5-2-2-1-3z" fill="white" opacity=".8"/>
+                  <defs>
+                    <linearGradient id="asl" x1="6" y1="5" x2="34" y2="32" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#00d4ff"/><stop offset="1" stopColor="#7b4fff"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <div>
+                <div className="admin-sidebar-brand">CamHost<span className="admin-sidebar-dot">.space</span></div>
+                <div className="admin-sidebar-tag">Admin Control Center</div>
+              </div>
+            </Link>
+            <button className="sidebar-close-btn admin-sidebar-close-btn" onClick={onClose} aria-label="Close sidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </div>
-            <div>
-              <div className="admin-sidebar-brand">CamHost<span className="admin-sidebar-dot">.space</span></div>
-              <div className="admin-sidebar-tag">Admin Control Center</div>
-            </div>
-          </Link>
+            </button>
+          </div>
 
           {/* Back to user dashboard */}
           <Link to="/files" className="admin-back-link" title="Back to User Dashboard">
