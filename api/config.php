@@ -56,19 +56,54 @@ define('TELEGRAM_CHAT_ID',   env('TELEGRAM_CHAT_ID',   ''));
 define('TELEGRAM_LOCAL_MODE', env('TELEGRAM_LOCAL_MODE', false));
 define('TELEGRAM_LOCAL_URL',  env('TELEGRAM_LOCAL_URL',  'http://127.0.0.1:8081'));
 
-// Computed API base URL
-define('TELEGRAM_API_BASE',
-    TELEGRAM_LOCAL_MODE
-        ? rtrim(TELEGRAM_LOCAL_URL, '/') . '/bot' . TELEGRAM_BOT_TOKEN
-        : 'https://api.telegram.org/bot'     . TELEGRAM_BOT_TOKEN
-);
+/**
+ * Checks if a local Telegram Bot API server is actually running and responding on port 8081.
+ * Prevents "Failed to connect to 127.0.0.1" errors if local mode was enabled without the server running.
+ */
+function isLocalBotServerAlive(): bool {
+    if (!TELEGRAM_LOCAL_MODE) {
+        return false;
+    }
+    static $alive = null;
+    if ($alive !== null) return $alive;
 
-// Computed file download base URL
-define('TELEGRAM_FILE_BASE',
-    TELEGRAM_LOCAL_MODE
-        ? rtrim(TELEGRAM_LOCAL_URL, '/') . '/file/bot' . TELEGRAM_BOT_TOKEN
-        : 'https://api.telegram.org/file/bot'          . TELEGRAM_BOT_TOKEN
-);
+    $url = rtrim(TELEGRAM_LOCAL_URL, '/') . '/bot' . TELEGRAM_BOT_TOKEN . '/getMe';
+    $ch = @curl_init($url);
+    if (!$ch) {
+        $alive = false;
+        return false;
+    }
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 2,
+        CURLOPT_CONNECTTIMEOUT => 1,
+        CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+    ]);
+    $res = @curl_exec($ch);
+    $err = curl_errno($ch);
+    curl_close($ch);
+
+    $alive = ($err === 0 && !empty($res));
+    return $alive;
+}
+
+function getTelegramApiBase(): string {
+    if (TELEGRAM_LOCAL_MODE && isLocalBotServerAlive()) {
+        return rtrim(TELEGRAM_LOCAL_URL, '/') . '/bot' . TELEGRAM_BOT_TOKEN;
+    }
+    return 'https://api.telegram.org/bot' . TELEGRAM_BOT_TOKEN;
+}
+
+function getTelegramFileBase(): string {
+    if (TELEGRAM_LOCAL_MODE && isLocalBotServerAlive()) {
+        return rtrim(TELEGRAM_LOCAL_URL, '/') . '/file/bot' . TELEGRAM_BOT_TOKEN;
+    }
+    return 'https://api.telegram.org/file/bot' . TELEGRAM_BOT_TOKEN;
+}
+
+// Computed API base URL with automatic fallback to Telegram Cloud
+define('TELEGRAM_API_BASE',  getTelegramApiBase());
+define('TELEGRAM_FILE_BASE', getTelegramFileBase());
 
 // ── Security ──
 define('JWT_SECRET', env('JWT_SECRET', 'CHANGE_THIS_TO_A_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS'));

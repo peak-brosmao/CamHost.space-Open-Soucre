@@ -77,10 +77,9 @@ function handleUpload(): void {
     }
 
     // ── Send to Telegram (Single or Multi-part Chunking) ────────
-    $chunkThreshold = 19 * 1024 * 1024; // 19 MB: safe under Telegram's 50MB upload & 20MB getFile limits
-    $isChunked = false;
+    $useLocal = TELEGRAM_LOCAL_MODE && isLocalBotServerAlive();
 
-    if ($sizeBytes > $chunkThreshold && !TELEGRAM_LOCAL_MODE) {
+    if ($sizeBytes > $chunkThreshold && !$useLocal) {
         $result = sendChunkedToTelegram($tmpPath, $originalName, $mimeType, $description);
         if (!$result['ok']) {
             jsonError($result['description'] ?? 'Multi-part chunk upload failed', 502);
