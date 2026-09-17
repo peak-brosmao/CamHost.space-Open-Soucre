@@ -52,6 +52,28 @@ export async function apiRequest(path, opts = {}) {
   return data;
 }
 
+export async function downloadFile(path, fileName, token = null) {
+  const headers = {};
+  const t = token || getToken();
+  if (t) headers['Authorization'] = 'Bearer ' + t;
+
+  const targetUrl = path.startsWith('http') ? path : API_BASE + path;
+  const res = await fetch(targetUrl, { headers });
+  if (!res.ok) {
+    throw new Error(`Download failed (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = fileName || 'download';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => window.URL.revokeObjectURL(blobUrl), 15000);
+}
+
 export function uploadWithProgress(path, formData, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

@@ -1,11 +1,8 @@
 # Apache .htaccess — api.camhost.space BACKEND
 # Deploy the contents of the api/ folder as the root of this subdomain.
-# Place this .htaccess at the root of api.camhost.space's document root.
 
-Options -Indexes
-
-# ── Block direct database access ─────────────────────────────────
-<FilesMatch "\.(db|sqlite|sqlite3)$">
+# ── Block sensitive files (.env, database, config) ───────────────
+<FilesMatch "^\.env|\.(db|sqlite|sqlite3|lock|json|log)$">
     Require all denied
 </FilesMatch>
 
@@ -13,7 +10,7 @@ Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Block /data/ directory entirely
+    # Block direct access to data directory
     RewriteRule ^data/ - [F,L]
 
     # Route all API requests → index.php with PATH_INFO
@@ -23,15 +20,13 @@ Options -Indexes
 </IfModule>
 
 # ── CORS — allow requests from camhost.space ─────────────────────
-# Note: PHP already sets CORS headers dynamically via config.php.
-# These Apache headers act as a fallback for pre-flight OPTIONS.
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin  "https://camhost.space"
-    Header always set Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With"
     Header always set Access-Control-Max-Age       "86400"
 
-    # Security
+    # Security Headers
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "DENY"
     Header set Referrer-Policy "strict-origin-when-cross-origin"

@@ -7,11 +7,49 @@
 
 require_once __DIR__ . '/config.php';
 
-// ── CORS Headers ────────────────────────────────────────────────
-header('Access-Control-Allow-Origin: '  . CORS_ORIGIN);
-header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept');
-header('Access-Control-Max-Age: 86400');
+// ── Strict Origin Security & CORS ───────────────────────────────
+$allowedOrigins = array_map('trim', explode(',', ALLOWED_ORIGINS));
+$requestOrigin  = $_SERVER['HTTP_ORIGIN'] ?? '';
+$requestReferer = $_SERVER['HTTP_REFERER'] ?? '';
+$matchedOrigin  = 'https://camhost.space';
+
+if ($requestOrigin) {
+    if (in_array($requestOrigin, $allowedOrigins, true)) {
+        $matchedOrigin = $requestOrigin;
+    } else {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'success' => false,
+            'error'   => 'Access denied: api.camhost.space is restricted to camhost.space'
+        ]);
+        exit;
+    }
+} elseif ($requestReferer) {
+    $found = false;
+    foreach ($allowedOrigins as $ao) {
+        if (str_starts_with($requestReferer, $ao)) {
+            $matchedOrigin = $ao;
+            $found         = true;
+            break;
+        }
+    }
+    if (!$found && preg_match('#^https?://#i', $requestReferer)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode([
+            'success' => false,
+            'error'   => 'Access denied: api.camhost.space is restricted to camhost.space'
+        ]);
+        exit;
+    }
+}
+
+header('Access-Control-Allow-Origin: ' . $matchedOrigin);
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept, X-Requested-With');
+header('Access-Control-Allow-Credentials: true');
+header('Vary: Origin');
 header('Content-Type: application/json; charset=UTF-8');
 
 // Handle preflight OPTIONS request

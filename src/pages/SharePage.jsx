@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiRequest, formatBytes, relativeDate, mimeInfo, API_BASE } from '../api/client';
+import { apiRequest, formatBytes, relativeDate, mimeInfo, API_BASE, downloadFile } from '../api/client';
 import CanvasBackground from '../components/CanvasBackground';
 import { useTheme } from '../context/ThemeContext';
 
@@ -8,6 +8,7 @@ export default function SharePage() {
   const { token } = useParams();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState(null);
 
   const { theme, toggleTheme } = useTheme();
@@ -194,10 +195,19 @@ export default function SharePage() {
               </div>
 
               {/* Direct Download Action */}
-              <a
-                href={downloadUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={async () => {
+                  setDownloading(true);
+                  try {
+                    await downloadFile(`/share/${token}/download`, file.file_name);
+                  } catch (err) {
+                    alert(err.message || 'Download failed');
+                  } finally {
+                    setDownloading(false);
+                  }
+                }}
+                disabled={downloading}
                 className="btn btn-primary"
                 style={{
                   width: '100%',
@@ -209,13 +219,21 @@ export default function SharePage() {
                   fontSize: '0.96rem',
                 }}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="16" height="16">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Download File ({formatBytes(file.file_size)})
-              </a>
+                {downloading ? (
+                  <>
+                    <span className="spinner-sm" /> Downloading from CamHost...
+                  </>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="16" height="16">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Download File ({formatBytes(file.file_size)})
+                  </>
+                )}
+              </button>
 
               <div
                 style={{

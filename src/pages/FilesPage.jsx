@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import Topbar from '../components/Topbar';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
-import { apiRequest, formatBytes, relativeDate, mimeInfo, API_BASE } from '../api/client';
+import { apiRequest, formatBytes, relativeDate, mimeInfo, API_BASE, downloadFile } from '../api/client';
 
 export default function FilesPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -101,16 +101,14 @@ export default function FilesPage() {
     });
 
   // Action Handlers
-  const handleDownload = (file) => {
-    const downloadUrl = `${API_BASE}/files/${file.id}/download`;
-    // Open in new tab or trigger direct download
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', file.file_name);
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (file) => {
+    try {
+      showToast(`Downloading: ${file.file_name}...`, 'info');
+      await downloadFile(`/files/${file.id}/download`, file.file_name);
+      showToast(`Downloaded: ${file.file_name}`, 'success');
+    } catch (err) {
+      showToast(err.message || 'Download failed', 'error');
+    }
   };
 
   // Open Rename Modal

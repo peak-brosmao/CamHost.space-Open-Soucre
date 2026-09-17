@@ -1,32 +1,62 @@
 <?php
 // =============================================
-// CamHost.space — API Configuration
+// CamHost.space — Secure API Configuration
 // Developer: PEAK BROSMAO · peakbrosmao.me
 // =============================================
 
+// ── Lightweight Zero-Dependency .env Loader ─────────────────────────
+function loadEnvFile(string $path): void {
+    if (!file_exists($path)) {
+        return;
+    }
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#')) {
+            continue;
+        }
+        if (str_contains($line, '=')) {
+            [$k, $v] = explode('=', $line, 2);
+            $k = trim($k);
+            $v = trim($v);
+            if ((str_starts_with($v, '"') && str_ends_with($v, '"')) ||
+                (str_starts_with($v, "'") && str_ends_with($v, "'"))) {
+                $v = substr($v, 1, -1);
+            }
+            if (!array_key_exists($k, $_SERVER) && !array_key_exists($k, $_ENV)) {
+                putenv("$k=$v");
+                $_ENV[$k]    = $v;
+                $_SERVER[$k] = $v;
+            }
+        }
+    }
+}
+
+// Load .env from api/ directory or root directory
+loadEnvFile(__DIR__ . '/.env');
+loadEnvFile(__DIR__ . '/../.env');
+
+function env(string $key, mixed $default = null): mixed {
+    $val = getenv($key);
+    if ($val === false) {
+        $val = $_ENV[$key] ?? $_SERVER[$key] ?? $default;
+    }
+    if ($val === 'true' || $val === '(true)') return true;
+    if ($val === 'false' || $val === '(false)') return false;
+    if ($val === 'empty' || $val === '(empty)') return '';
+    if ($val === 'null' || $val === '(null)') return null;
+    return $val;
+}
+
 // ── Telegram Bot Settings ──
-// Get your token from @BotFather on Telegram
-// Get your Chat ID by forwarding a message to @userinfobot
-define('TELEGRAM_BOT_TOKEN', '');
-define('TELEGRAM_CHAT_ID',   '');
+define('TELEGRAM_BOT_TOKEN', env('TELEGRAM_BOT_TOKEN', ''));
+define('TELEGRAM_CHAT_ID',   env('TELEGRAM_CHAT_ID',   ''));
 
-// ── Telegram API Mode ──────────────────────────────────────────────────────
-//
-//  MODE A — Telegram Cloud API (default, no extra setup)
-//    - Works out of the box
-//    - Max file size: 50 MB
-//
-//  MODE B — Telegram Local Bot API Server (self-hosted, unlocks 2 GB)
-//    - Max file size: 2 GB
-//    - Requires running: https://github.com/tdlib/telegram-bot-api
-//    - Default local server URL: http://127.0.0.1:8081
-//
-// Set TELEGRAM_LOCAL_MODE to true and fill TELEGRAM_LOCAL_URL to enable MODE B.
-// ────────────────────────────────────────────────────────────────────────────
-define('TELEGRAM_LOCAL_MODE', false);                         // true = Local API (2 GB), false = Cloud API (50 MB)
-define('TELEGRAM_LOCAL_URL',  'http://127.0.0.1:8081');       // URL of your local Bot API server
+// ── Telegram API Mode ───────────────────────────────────────────────
+define('TELEGRAM_LOCAL_MODE', env('TELEGRAM_LOCAL_MODE', false));
+define('TELEGRAM_LOCAL_URL',  env('TELEGRAM_LOCAL_URL',  'http://127.0.0.1:8081'));
 
-// Computed API base URL (don't change this)
+// Computed API base URL
 define('TELEGRAM_API_BASE',
     TELEGRAM_LOCAL_MODE
         ? rtrim(TELEGRAM_LOCAL_URL, '/') . '/bot' . TELEGRAM_BOT_TOKEN
@@ -41,33 +71,27 @@ define('TELEGRAM_FILE_BASE',
 );
 
 // ── Security ──
-// Generate a strong random secret: php -r "echo bin2hex(random_bytes(32));"
-define('JWT_SECRET',     'CHANGE_THIS_TO_A_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS');
+define('JWT_SECRET', env('JWT_SECRET', 'CHANGE_THIS_TO_A_RANDOM_SECRET_KEY_AT_LEAST_32_CHARS'));
 
-// ── Admin Credentials (single-user mode) ──
-// Change these before deploying!
-define('ADMIN_EMAIL',    'admin@camhost.space');
-define('ADMIN_PASSWORD', 'changeme123');  // Plain text — will be hashed on first boot
+// ── Admin Credentials ──
+define('ADMIN_EMAIL',    env('ADMIN_EMAIL',    'admin@camhost.space'));
+define('ADMIN_PASSWORD', env('ADMIN_PASSWORD', 'changeme123'));
 
 // ── Database ──
-define('DB_PATH', __DIR__ . '/../data/camhost.db');
+define('DB_PATH', env('DB_PATH', __DIR__ . '/../data/camhost.db'));
 
 // ── Upload Limit ──
-// Cloud mode  → keep at 50 (Telegram hard limit)
-// Local mode  → set up to 2000 (2 GB)
 define('UPLOAD_MAX_MB', TELEGRAM_LOCAL_MODE ? 2000 : 50);
 
 // ── cURL Timeouts ──
-// Local mode needs longer timeouts for large file transfers
-define('CURL_UPLOAD_TIMEOUT',  TELEGRAM_LOCAL_MODE ? 3600 : 120);  // seconds
+define('CURL_UPLOAD_TIMEOUT',  TELEGRAM_LOCAL_MODE ? 3600 : 120);
 define('CURL_CONNECT_TIMEOUT', 30);
 
-// ── App ──
+// ── App Info ──
 define('APP_NAME',    'CamHost.space');
 define('APP_VERSION', '1.0.0');
-define('APP_URL',     'https://api.camhost.space'); // API subdomain
+define('APP_URL',     env('APP_URL', 'https://api.camhost.space'));
 
-// ── CORS — allowed origins ──
-// Only allow requests from the official frontend domain.
-// Change to '*' only for local development.
-define('CORS_ORIGIN', 'https://camhost.space');
+// ── Strict CORS & Domain Protection ──
+// Strictly allowed frontend origins. Multiple domains can be comma-separated.
+define('ALLOWED_ORIGINS', env('ALLOWED_ORIGINS', 'https://camhost.space,http://localhost:3000,http://localhost:5173'));
