@@ -219,7 +219,7 @@ export default function VerifyAccountPage() {
                       Activation Email Sent!
                     </div>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
-                      We dispatched a verification email from <strong>support@camhost.space</strong> to your inbox. Please check your spam or junk folder if you don't see it within 1 minute.
+                      We dispatched a verification email from <strong>noreply@camhost.space</strong> to your inbox. Please check your spam or junk folder if you don't see it within 1 minute.
                     </p>
                     {generatedLink && (
                       <div style={{ marginTop: '10px' }}>
@@ -248,7 +248,7 @@ export default function VerifyAccountPage() {
                       />
                     </div>
                     <button type="submit" className="btn btn-secondary" style={{ width: '100%' }} disabled={loadingAction}>
-                      {loadingAction ? 'Sending from support@camhost.space...' : 'Send Activation Email'}
+                      {loadingAction ? 'Sending from noreply@camhost.space...' : 'Send Activation Email'}
                     </button>
                   </form>
                 )}

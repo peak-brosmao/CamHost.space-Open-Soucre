@@ -95,7 +95,7 @@ export default function RegisterPage() {
 
                 <h1 className="auth-title">Check Your Email</h1>
                 <p className="auth-subtitle" style={{ marginBottom: '20px' }}>
-                  An activation email has been dispatched from <strong>support@camhost.space</strong> to{' '}
+                  An activation email has been dispatched from <strong>noreply@camhost.space</strong> to{' '}
                   <strong>{activationInfo.email}</strong>. Please check your inbox or spam folder.
                 </p>
 
