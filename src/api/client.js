@@ -205,8 +205,9 @@ export function uploadWithProgress(path, formData, onProgress, onChunkProgress) 
 //   • concurrency=2 → browser sends next chunk while server forwards current to Telegram
 //   • onProgress(percent, loadedBytes, totalBytes) — smooth 0→100
 
-const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB — smaller = smoother progress, shorter pauses
-const CHUNK_CONCURRENCY = 4;          // Upload 4 chunks simultaneously — hides server→Telegram latency
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
+const CHUNK_CONCURRENCY = 2;          // 2 parallel — fast enough, avoids rate limit bursts
+const CHUNK_STAGGER_MS  = 300;        // stagger each new launch by 300ms to avoid burst
 
 export function uploadChunked(file, extraFields = {}, onProgress) {
   const totalSize = file.size;
@@ -317,24 +318,27 @@ export function uploadChunked(file, extraFields = {}, onProgress) {
       const inFlight = new Set();
 
       await new Promise((resolveAll, rejectAll) => {
-        const launch = () => {
+        let launching = false;
+        const launch = async () => {
+          if (launching) return;
+          launching = true;
           while (inFlight.size < CHUNK_CONCURRENCY && nextIndex < totalChunks) {
             const i = nextIndex++;
             const p = uploadChunkAt(i).then(
               (res) => {
                 results[i] = res;
                 inFlight.delete(p);
-                if (nextIndex < totalChunks || inFlight.size > 0) {
-                  launch(); // fill concurrency slot
-                }
-                if (chunkDone.every(Boolean)) {
-                  resolveAll();
-                }
+                if (chunkDone.every(Boolean)) resolveAll();
+                else launch();
               },
               (err) => rejectAll(err)
             );
             inFlight.add(p);
+            if (nextIndex < totalChunks && inFlight.size < CHUNK_CONCURRENCY) {
+              await new Promise((r) => setTimeout(r, CHUNK_STAGGER_MS));
+            }
           }
+          launching = false;
         };
         launch();
       });

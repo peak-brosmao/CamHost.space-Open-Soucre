@@ -528,69 +528,90 @@ function proxyDownloadChunks(array $chunkIds, string $name, string $mime, int $s
     @set_time_limit(3600);
     while (ob_get_level()) ob_end_clean();
 
-    $safeName = basename($name);
-    if (empty($safeName)) $safeName = 'download';
-    $asciiName = preg_replace('/[^\x20-\x7e]/', '', str_replace(['"', ';', '\\', '/'], '', $safeName));
-    if (empty($asciiName)) $asciiName = 'download';
+    // ── Step 1: Pre-fetch ALL chunk download URLs in parallel ──────────────
+    // Using curl_multi so all getFile API calls happen simultaneously,
+    // eliminating the pause between chunks during streaming.
+    $mh      = curl_multi_init();
+    $handles = [];
+
+    foreach ($chunkIds as $i => $chunkId) {
+        $url = TELEGRAM_API_BASE . '/getFile?file_id=' . urlencode($chunkId);
+        $ch  = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
+        ]);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$i] = $ch;
+    }
+
+    // Execute all getFile requests in parallel
+    $running = null;
+    do {
+        curl_multi_exec($mh, $running);
+        curl_multi_select($mh);
+    } while ($running > 0);
+
+    // Collect results
+    $chunkUrls = [];
+    foreach ($handles as $i => $ch) {
+        $body = curl_multi_getcontent($ch);
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+
+        $json = json_decode($body, true);
+        if (!isset($json['ok']) || !$json['ok'] || empty($json['result']['file_path'])) {
+            $errDesc = $json['description'] ?? 'unknown';
+            error_log("[CamHost Download] Chunk {$i} getFile failed: {$errDesc} | file_id=" . substr($chunkIds[$i], 0, 20));
+            curl_multi_close($mh);
+
+            http_response_code(502);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'error'   => 'This file cannot be downloaded (chunk ' . ($i + 1) . ' unreachable). Please re-upload the file.',
+            ]);
+            exit;
+        }
+        $chunkUrls[$i] = TELEGRAM_FILE_BASE . '/' . $json['result']['file_path'];
+    }
+    curl_multi_close($mh);
+
+    // ── Step 2: Send HTTP headers ──────────────────────────────────────────
+    $safeName    = basename($name) ?: 'download';
+    $asciiName   = preg_replace('/[^\x20-\x7e]/', '', str_replace(['"', ';', '\\', '/'], '', $safeName)) ?: 'download';
     $encodedName = rawurlencode($safeName);
 
     header('Content-Type: ' . ($mime ?: 'application/octet-stream'));
     header('Content-Disposition: attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . $encodedName);
-    if ($sizeBytes > 0) {
-        header('Content-Length: ' . $sizeBytes);
-    }
+    if ($sizeBytes > 0) header('Content-Length: ' . $sizeBytes);
     header('X-Accel-Buffering: no');
     header('Cache-Control: private, no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
 
-    foreach ($chunkIds as $i => $chunkId) {
-        $info = getTelegramFileInfo($chunkId);
-
-        if (!$info['ok'] || empty($info['result']['file_path'])) {
-            // Telegram getFile failed — most common cause is chunk > 20MB (old 49MB uploads).
-            // Log for debugging and abort with a meaningful error.
-            $errDesc = $info['description'] ?? ($info['error_code'] ?? 'unknown');
-            error_log("[CamHost Download] Chunk {$i} getFile failed: {$errDesc} | file_id=" . substr($chunkId, 0, 20));
-
-            // If headers not yet sent, we can still return a JSON error
-            if (!headers_sent()) {
-                while (ob_get_level()) ob_end_clean();
-                http_response_code(502);
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'success' => false,
-                    'error'   => 'This file was uploaded with an older system and cannot be downloaded directly. Please re-upload the file.',
-                ]);
-                exit;
-            }
-            // Headers already sent — just exit to stop the broken stream
-            exit;
-        }
-
-        $chunkUrl = TELEGRAM_FILE_BASE . '/' . $info['result']['file_path'];
+    // ── Step 3: Stream chunks back-to-back with no gaps ───────────────────
+    foreach ($chunkUrls as $i => $chunkUrl) {
         $ch = curl_init($chunkUrl);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_TIMEOUT        => 3600,
             CURLOPT_CONNECTTIMEOUT => 30,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_BUFFERSIZE     => 131072,
-            CURLOPT_WRITEFUNCTION  => function($curl, $data) {
+            CURLOPT_BUFFERSIZE     => 262144, // 256KB buffer
+            CURLOPT_WRITEFUNCTION  => function ($curl, $data) {
                 echo $data;
                 flush();
                 return strlen($data);
             },
         ]);
-        $curlErr = null;
         if (!curl_exec($ch)) {
-            $curlErr = curl_error($ch);
-            error_log("[CamHost Download] Chunk {$i} curl failed: {$curlErr}");
+            error_log('[CamHost Download] Chunk ' . $i . ' stream failed: ' . curl_error($ch));
+            curl_close($ch);
+            exit;
         }
         curl_close($ch);
-
-        if ($curlErr) {
-            exit; // Stop broken stream — browser will see truncated download
-        }
     }
     exit;
 }
