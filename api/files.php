@@ -543,10 +543,28 @@ function proxyDownloadChunks(array $chunkIds, string $name, string $mime, int $s
     header('Cache-Control: private, no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
 
-    foreach ($chunkIds as $chunkId) {
+    foreach ($chunkIds as $i => $chunkId) {
         $info = getTelegramFileInfo($chunkId);
+
         if (!$info['ok'] || empty($info['result']['file_path'])) {
-            continue;
+            // Telegram getFile failed — most common cause is chunk > 20MB (old 49MB uploads).
+            // Log for debugging and abort with a meaningful error.
+            $errDesc = $info['description'] ?? ($info['error_code'] ?? 'unknown');
+            error_log("[CamHost Download] Chunk {$i} getFile failed: {$errDesc} | file_id=" . substr($chunkId, 0, 20));
+
+            // If headers not yet sent, we can still return a JSON error
+            if (!headers_sent()) {
+                while (ob_get_level()) ob_end_clean();
+                http_response_code(502);
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success' => false,
+                    'error'   => 'This file was uploaded with an older system and cannot be downloaded directly. Please re-upload the file.',
+                ]);
+                exit;
+            }
+            // Headers already sent — just exit to stop the broken stream
+            exit;
         }
 
         $chunkUrl = TELEGRAM_FILE_BASE . '/' . $info['result']['file_path'];
@@ -563,8 +581,16 @@ function proxyDownloadChunks(array $chunkIds, string $name, string $mime, int $s
                 return strlen($data);
             },
         ]);
-        curl_exec($ch);
+        $curlErr = null;
+        if (!curl_exec($ch)) {
+            $curlErr = curl_error($ch);
+            error_log("[CamHost Download] Chunk {$i} curl failed: {$curlErr}");
+        }
         curl_close($ch);
+
+        if ($curlErr) {
+            exit; // Stop broken stream — browser will see truncated download
+        }
     }
     exit;
 }
