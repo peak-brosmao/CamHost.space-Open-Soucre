@@ -206,7 +206,7 @@ export function uploadWithProgress(path, formData, onProgress, onChunkProgress) 
 //   • onProgress(percent, loadedBytes, totalBytes) — smooth 0→100
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB — smaller = smoother progress, shorter pauses
-const CHUNK_CONCURRENCY = 2;          // Upload 2 chunks simultaneously
+const CHUNK_CONCURRENCY = 4;          // Upload 4 chunks simultaneously — hides server→Telegram latency
 
 export function uploadChunked(file, extraFields = {}, onProgress) {
   const totalSize = file.size;
@@ -286,32 +286,61 @@ export function uploadChunked(file, extraFields = {}, onProgress) {
   });
 
   return (async () => {
-    // Upload with bounded concurrency using a pool
-    let nextIndex = 0;
-    const inFlight = new Set();
+    // Smooth interpolation: keep progress bar moving between chunk boundaries
+    // When browser is waiting for server→Telegram, estimate progress using last known speed
+    let lastReportedLoaded = 0;
+    let lastReportTime = Date.now();
+    let estimatedSpeed = 0; // bytes/ms
 
-    await new Promise((resolveAll, rejectAll) => {
-      const launch = () => {
-        while (inFlight.size < CHUNK_CONCURRENCY && nextIndex < totalChunks) {
-          const i = nextIndex++;
-          const p = uploadChunkAt(i).then(
-            (res) => {
-              results[i] = res;
-              inFlight.delete(p);
-              if (nextIndex < totalChunks || inFlight.size > 0) {
-                launch(); // fill concurrency slot
-              }
-              if (chunkDone.every(Boolean)) {
-                resolveAll();
-              }
-            },
-            (err) => rejectAll(err)
-          );
-          inFlight.add(p);
-        }
-      };
-      launch();
-    });
+    const smoothInterval = setInterval(() => {
+      const now = Date.now();
+      const realLoaded = chunkLoaded.reduce((a, b) => a + b, 0);
+
+      // Update speed estimate from real progress
+      const dt = now - lastReportTime;
+      if (dt > 200 && realLoaded > lastReportedLoaded) {
+        estimatedSpeed = (realLoaded - lastReportedLoaded) / dt;
+        lastReportedLoaded = realLoaded;
+        lastReportTime = now;
+      }
+
+      // Interpolate forward using estimated speed
+      const elapsed = now - lastReportTime;
+      const interpolated = Math.min(totalSize - 1, realLoaded + estimatedSpeed * elapsed);
+      const percent = Math.min(99, Math.round((interpolated / totalSize) * 100));
+      if (onProgress) onProgress(percent, Math.round(interpolated), totalSize);
+    }, 150); // update every 150ms for silky smooth bar
+
+    try {
+      // Upload with bounded concurrency using a pool
+      let nextIndex = 0;
+      const inFlight = new Set();
+
+      await new Promise((resolveAll, rejectAll) => {
+        const launch = () => {
+          while (inFlight.size < CHUNK_CONCURRENCY && nextIndex < totalChunks) {
+            const i = nextIndex++;
+            const p = uploadChunkAt(i).then(
+              (res) => {
+                results[i] = res;
+                inFlight.delete(p);
+                if (nextIndex < totalChunks || inFlight.size > 0) {
+                  launch(); // fill concurrency slot
+                }
+                if (chunkDone.every(Boolean)) {
+                  resolveAll();
+                }
+              },
+              (err) => rejectAll(err)
+            );
+            inFlight.add(p);
+          }
+        };
+        launch();
+      });
+    } finally {
+      clearInterval(smoothInterval);
+    }
 
     // All chunks done — finalize
     if (onProgress) onProgress(100, totalSize, totalSize);
