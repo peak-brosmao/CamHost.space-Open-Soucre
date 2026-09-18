@@ -197,13 +197,16 @@ export function uploadWithProgress(path, formData, onProgress, onChunkProgress) 
 }
 
 // ── Client-Side Chunked Upload ──────────────────────────────────────
-// Splits the file in the browser, uploads each 49MB chunk via XHR to /upload-chunk,
-// then calls /upload-finalize. Progress is smooth 0→100% with no "Saving to Telegram" phase.
+// Splits the file in the browser, uploads each chunk via XHR to /upload-chunk,
+// then calls /upload-finalize. Progress is smooth 0→100%.
 //
-// onProgress(percent, loadedBytes, totalBytes) — smooth 0→100
-// Falls back to uploadWithProgress for small files (≤49MB).
+// Key optimizations:
+//   • 10MB chunk size → shorter pauses at chunk boundaries
+//   • concurrency=2 → browser sends next chunk while server forwards current to Telegram
+//   • onProgress(percent, loadedBytes, totalBytes) — smooth 0→100
 
-const CHUNK_SIZE = 49 * 1000 * 1000; // 49 MB (Telegram Cloud API limit is 50 MB per request)
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB — smaller = smoother progress, shorter pauses
+const CHUNK_CONCURRENCY = 2;          // Upload 2 chunks simultaneously
 
 export function uploadChunked(file, extraFields = {}, onProgress) {
   const totalSize = file.size;
@@ -218,16 +221,27 @@ export function uploadChunked(file, extraFields = {}, onProgress) {
     return uploadWithProgress('/upload', formData, onProgress);
   }
 
-  // Large file: client-side chunking
+  // Large file: parallel client-side chunking
   const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
-  const fileIds = [];
-  const messageIds = [];
-  let loadedSoFar = 0; // bytes fully completed in previous chunks
+
+  // Track loaded bytes per chunk slot for accurate combined progress
+  const chunkLoaded = new Array(totalChunks).fill(0);
+  const chunkDone   = new Array(totalChunks).fill(false);
+
+  // Results array (preserve order for finalize)
+  const results = new Array(totalChunks).fill(null);
+
+  const reportProgress = () => {
+    const totalLoaded = chunkLoaded.reduce((a, b) => a + b, 0);
+    const percent = Math.min(99, Math.round((totalLoaded / totalSize) * 100));
+    if (onProgress) onProgress(percent, totalLoaded, totalSize);
+  };
 
   const uploadChunkAt = (index) => new Promise((resolve, reject) => {
     const start = index * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, totalSize);
-    const blob = file.slice(start, end);
+    const end   = Math.min(start + CHUNK_SIZE, totalSize);
+    const blob  = file.slice(start, end);
+    const chunkSize = end - start;
 
     const fd = new FormData();
     fd.append('chunk', blob, file.name);
@@ -243,14 +257,10 @@ export function uploadChunked(file, extraFields = {}, onProgress) {
     if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token);
     xhr.setRequestHeader('Accept', 'application/json');
 
-    const chunkSize = end - start;
-
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) {
-        const chunkLoaded = e.loaded;
-        const totalLoaded = loadedSoFar + chunkLoaded;
-        const percent = Math.min(99, Math.round((totalLoaded / totalSize) * 100));
-        onProgress(percent, totalLoaded, totalSize);
+      if (e.lengthComputable) {
+        chunkLoaded[index] = e.loaded;
+        reportProgress();
       }
     };
 
@@ -258,7 +268,9 @@ export function uploadChunked(file, extraFields = {}, onProgress) {
       try {
         const json = JSON.parse(xhr.responseText);
         if (xhr.status < 300 && json.success !== false && json.file_id) {
-          loadedSoFar += chunkSize;
+          chunkLoaded[index] = chunkSize; // mark as 100% on this chunk
+          chunkDone[index]   = true;
+          reportProgress();
           resolve(json);
         } else {
           reject(new Error(json.error || `Chunk ${index + 1} failed (HTTP ${xhr.status})`));
@@ -268,39 +280,63 @@ export function uploadChunked(file, extraFields = {}, onProgress) {
       }
     };
 
-    xhr.onerror = () => reject(new Error(`Network error on chunk ${index + 1}. Check your connection.`));
-    xhr.ontimeout = () => reject(new Error(`Chunk ${index + 1} timed out. Try a faster connection.`));
+    xhr.onerror   = () => reject(new Error(`Network error on chunk ${index + 1}. Check your connection.`));
+    xhr.ontimeout = () => reject(new Error(`Chunk ${index + 1} timed out.`));
     xhr.send(fd);
   });
 
   return (async () => {
-    // Upload chunks sequentially
-    for (let i = 0; i < totalChunks; i++) {
-      const result = await uploadChunkAt(i);
-      fileIds.push(result.file_id);
-      if (result.message_id) messageIds.push(result.message_id);
-    }
+    // Upload with bounded concurrency using a pool
+    let nextIndex = 0;
+    const inFlight = new Set();
 
-    // All chunks uploaded — finalize
+    await new Promise((resolveAll, rejectAll) => {
+      const launch = () => {
+        while (inFlight.size < CHUNK_CONCURRENCY && nextIndex < totalChunks) {
+          const i = nextIndex++;
+          const p = uploadChunkAt(i).then(
+            (res) => {
+              results[i] = res;
+              inFlight.delete(p);
+              if (nextIndex < totalChunks || inFlight.size > 0) {
+                launch(); // fill concurrency slot
+              }
+              if (chunkDone.every(Boolean)) {
+                resolveAll();
+              }
+            },
+            (err) => rejectAll(err)
+          );
+          inFlight.add(p);
+        }
+      };
+      launch();
+    });
+
+    // All chunks done — finalize
     if (onProgress) onProgress(100, totalSize, totalSize);
+
+    const fileIds    = results.map((r) => r.file_id);
+    const messageIds = results.map((r) => r.message_id).filter(Boolean);
 
     const finalizeRes = await apiRequest('/upload-finalize', {
       method: 'POST',
       body: {
-        file_ids: fileIds,
-        message_ids: messageIds,
+        file_ids:      fileIds,
+        message_ids:   messageIds,
         original_name: file.name,
-        mime_type: file.type || 'application/octet-stream',
-        total_size: totalSize,
-        folder_id: extraFields.folder_id ?? null,
-        description: extraFields.description ?? '',
-        is_public: extraFields.is_public ?? false,
+        mime_type:     file.type || 'application/octet-stream',
+        total_size:    totalSize,
+        folder_id:     extraFields.folder_id ?? null,
+        description:   extraFields.description ?? '',
+        is_public:     extraFields.is_public ?? false,
       },
     });
 
     return finalizeRes;
   })();
 }
+
 
 export function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
