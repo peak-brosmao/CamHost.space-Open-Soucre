@@ -156,6 +156,31 @@ export default function FilesPage({ filter: propFilter }) {
   const [renameFolderModal, setRenameFolderModal] = useState({ isOpen: false, folder: null, newName: '', loading: false });
   const [deleteFolderModal, setDeleteFolderModal] = useState({ isOpen: false, folder: null, loading: false });
 
+  // Duplicate file modal (Replace / Skip)
+  const [dupModal, setDupModal] = useState({ isOpen: false, fileName: '', existingFile: null, resolve: null });
+
+  // Show duplicate modal and wait for user decision
+  const askDuplicate = (fileName, existingFile) => new Promise((resolve) => {
+    setDupModal({ isOpen: true, fileName, existingFile, resolve });
+  });
+
+  const handleDupReplace = async () => {
+    const { existingFile, resolve } = dupModal;
+    setDupModal((prev) => ({ ...prev, isOpen: false }));
+    // Delete old file first
+    try {
+      await apiRequest(`/files/${existingFile.id}`, { method: 'DELETE' });
+      setFiles((prev) => prev.filter((f) => f.id !== existingFile.id));
+    } catch (e) { /* ignore — upload will still proceed */ }
+    resolve('replace');
+  };
+
+  const handleDupSkip = () => {
+    const { resolve } = dupModal;
+    setDupModal((prev) => ({ ...prev, isOpen: false }));
+    resolve('skip');
+  };
+
   // Drag & drop state
   const [isDraggingPage, setIsDraggingPage] = useState(false);
   const [dragTargetFolderId, setDragTargetFolderId] = useState(null);
@@ -222,6 +247,7 @@ export default function FilesPage({ filter: propFilter }) {
       const res = await apiRequest(path);
       if (res && res.files) {
         setFiles(res.files);
+        window.__camhostFiles = res.files; // expose for duplicate detection
       }
     } catch (err) {
       if (!isBackground) {
@@ -588,6 +614,25 @@ export default function FilesPage({ filter: propFilter }) {
       const file = files[i];
       // Reset speed tracker for each new file
       speedTrackRef.current = { lastTime: Date.now(), lastLoaded: 0, samples: [] };
+
+      // ── Duplicate detection ──────────────────────────────────────
+      // Check if a file with the same name already exists in the target folder
+      const existingFile = (window.__camhostFiles || []).find((f) => {
+        const fName = f.file_name || f.original_name || f.name || '';
+        const sameName = fName.toLowerCase() === file.name.toLowerCase();
+        const sameFolder = String(f.folder_id ?? 'null') === String(effectiveFolderId ?? 'null');
+        return sameName && sameFolder;
+      });
+
+      if (existingFile) {
+        const decision = await askDuplicate(file.name, existingFile);
+        if (decision === 'skip') {
+          // Skip this file — update task UI briefly then continue
+          setUploadTask((prev) => ({ ...prev, fileName: file.name, currentFileIndex: i + 1 }));
+          continue;
+        }
+        // 'replace' — old file was already deleted in handleDupReplace, proceed with upload
+      }
 
       setUploadTask((prev) => ({
         ...prev,
@@ -2278,6 +2323,75 @@ export default function FilesPage({ filter: propFilter }) {
           This action cannot be undone. The file will be removed from your cloud storage.
         </p>
       </Modal>
+
+      {/* Duplicate File Modal — Replace or Skip */}
+      {dupModal.isOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+          padding: '16px',
+        }}>
+          <div style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: '20px', padding: '28px 24px', maxWidth: '440px', width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }}>
+            <div style={{
+              width: '52px', height: '52px', borderRadius: '14px',
+              background: 'rgba(245,158,11,0.12)', color: '#f59e0b',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: '16px',
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="26" height="26">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
+              Duplicate File Detected
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '16px', lineHeight: 1.6 }}>
+              A file named <strong style={{ color: 'var(--text)' }}>{dupModal.fileName}</strong> already exists in this folder.
+            </p>
+            <div style={{
+              background: 'var(--bg)', borderRadius: '10px', padding: '12px 14px',
+              marginBottom: '20px', fontSize: '0.82rem', color: 'var(--text-muted)',
+              display: 'flex', gap: '16px', flexWrap: 'wrap',
+            }}>
+              <span>
+                <span style={{ opacity: 0.6 }}>Existing size: </span>
+                <strong style={{ color: 'var(--text)' }}>
+                  {dupModal.existingFile ? formatBytes(dupModal.existingFile.size_bytes ?? dupModal.existingFile.file_size ?? dupModal.existingFile.size ?? 0) : '—'}
+                </strong>
+              </span>
+              <span>
+                <span style={{ opacity: 0.6 }}>Uploaded: </span>
+                <strong style={{ color: 'var(--text)' }}>
+                  {dupModal.existingFile ? relativeDate(dupModal.existingFile.created_at) : '—'}
+                </strong>
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" className="btn btn-primary" onClick={handleDupReplace}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', borderRadius: '12px', padding: '12px' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+                Replace
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={handleDupSkip}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', borderRadius: '12px', padding: '12px' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Rename Folder Modal */}
       <Modal
