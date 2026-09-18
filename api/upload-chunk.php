@@ -16,7 +16,7 @@ function handleUploadChunk(): void {
     @ini_set('memory_limit', '256M');
 
     $user = requireVerified();
-    enforceRateLimit('upload', 20, 60);
+    enforceRateLimit('upload_chunk', 200, 60); // 200 chunks/min — large files need many chunks
 
     if (empty($_FILES['chunk'])) {
         jsonError('No chunk data received.', 400);
