@@ -1,19 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
+import { apiRequest } from '../api/client';
 import Header from '../components/Header';
 import CanvasBackground from '../components/CanvasBackground';
+import CaptchaWidget from '../components/CaptchaWidget';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [publicSettings, setPublicSettings] = useState(null);
 
   const { login } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    apiRequest('/public-settings')
+      .then((res) => {
+        if (res?.settings) setPublicSettings(res.settings);
+      })
+      .catch(() => {});
+  }, []);
+
+  const isCaptchaRequired =
+    publicSettings?.captcha_provider &&
+    publicSettings.captcha_provider !== 'disabled' &&
+    publicSettings.captcha_on_login === '1' &&
+    publicSettings.captcha_site_key;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,11 +40,16 @@ export default function LoginPage() {
       return;
     }
 
+    if (isCaptchaRequired && !captchaToken) {
+      setError('Please complete the security challenge before signing in');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      await login(email, password);
+      await login(email, password, captchaToken);
       showToast('Welcome back!', 'success');
       navigate('/files');
     } catch (err) {
@@ -91,9 +114,9 @@ export default function LoginPage() {
                     type="button"
                     onClick={handleResendActivation}
                     className="btn btn-secondary btn-sm"
-                    style={{ marginTop: '4px', width: '100%', justifyContent: 'center' }}
+                    style={{ marginTop: '4px', fontSize: '0.8rem', padding: '4px 10px' }}
                   >
-                    Activate / Resend Verification Link
+                    Resend Activation Link
                   </button>
                 )}
               </div>
@@ -127,6 +150,16 @@ export default function LoginPage() {
                   autoComplete="current-password"
                 />
               </div>
+
+              {/* Bot & Abuse Captcha Shield */}
+              {isCaptchaRequired && (
+                <CaptchaWidget
+                  provider={publicSettings.captcha_provider}
+                  siteKey={publicSettings.captcha_site_key}
+                  onVerify={(tok) => setCaptchaToken(tok)}
+                  onExpire={() => setCaptchaToken('')}
+                />
+              )}
 
               <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={loading}>
                 {loading ? (

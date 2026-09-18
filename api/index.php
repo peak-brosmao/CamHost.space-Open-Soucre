@@ -76,14 +76,25 @@ define('ROUTED_FROM_INDEX', true);
 
 // ── Maintenance Mode Check ───────────────────────────────────────
 $isMaintenance = false;
+$maintMsg = 'CamHost.space is currently undergoing scheduled maintenance. Please check back shortly.';
 try {
-    $stmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
-    $stmt->execute(['maintenance_mode']);
-    $val = $stmt->fetchColumn();
-    $isMaintenance = ($val === '1');
+    $stmt = db()->prepare("SELECT key, value FROM system_settings WHERE key IN ('maintenance_mode', 'maintenance_message', 'maintenance_whitelist_ips')");
+    $stmt->execute();
+    $sRows = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    $isMaintenance = (($sRows['maintenance_mode'] ?? '0') === '1');
+    if (!empty($sRows['maintenance_message'])) {
+        $maintMsg = $sRows['maintenance_message'];
+    }
+    if ($isMaintenance && !empty($sRows['maintenance_whitelist_ips'])) {
+        $wlIps = array_filter(array_map('trim', explode(',', $sRows['maintenance_whitelist_ips'])));
+        $clientIp = getClientIp();
+        if (in_array($clientIp, $wlIps, true)) {
+            $isMaintenance = false;
+        }
+    }
 } catch (Exception $e) {}
 
-if ($isMaintenance && !str_starts_with($rawPath, '/admin') && $rawPath !== '/auth/login') {
+if ($isMaintenance && !str_starts_with($rawPath, '/admin') && $rawPath !== '/auth/login' && $rawPath !== '/public-settings') {
     // Check if bearer token belongs to admin
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     $isAdmin = false;
@@ -98,7 +109,7 @@ if ($isMaintenance && !str_starts_with($rawPath, '/admin') && $rawPath !== '/aut
         http_response_code(503);
         echo json_encode([
             'success'     => false,
-            'error'       => 'CamHost.space is currently undergoing scheduled maintenance. Please check back shortly.',
+            'error'       => $maintMsg,
             'maintenance' => true,
         ]);
         exit;
@@ -116,6 +127,31 @@ try {
             'status'  => 'ok',
             'time'    => date('c'),
         ]);
+    }
+
+    // ── Public non-sensitive platform settings for frontend ──
+    if ($rawPath === '/public-settings' && $method === 'GET') {
+        $publicKeys = [
+            'site_name', 'site_description', 'support_email', 'allow_registration', 'require_email_verification',
+            'captcha_provider', 'captcha_site_key', 'captcha_on_login', 'captcha_on_register',
+            'banner_enabled', 'announcement_banner', 'banner_type', 'default_theme', 'accent_color',
+            'custom_logo_url', 'custom_favicon_url', 'max_upload_size_mb', 'allowed_extensions',
+            'allow_guest_download', 'allow_guest_uploads', 'guest_max_upload_mb', 'social_telegram',
+            'social_facebook', 'social_github', 'maintenance_mode', 'maintenance_message',
+            'default_language', 'multilingual_enabled'
+        ];
+        $inClause = implode(',', array_fill(0, count($publicKeys), '?'));
+        $stmt = db()->prepare("SELECT key, value FROM system_settings WHERE key IN ($inClause)");
+        $stmt->execute($publicKeys);
+        $settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        jsonSuccess(['settings' => $settings]);
+    }
+
+    // ── Cron runner endpoint ──
+    if ($rawPath === '/cron') {
+        require __DIR__ . '/cron.php';
+        $res = runSystemCron();
+        jsonSuccess($res);
     }
 
     // ── Admin routes — /admin, /admin/overview, /admin/users, /admin/files, /admin/settings, /admin/health, etc. ──

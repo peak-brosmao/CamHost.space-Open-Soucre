@@ -176,19 +176,87 @@ function buildUserProfile(array $user): array {
 // ── Route Handlers ──────────────────────────────────────────────
 
 /**
+ * Verify captcha challenge token against Cloudflare Turnstile or Google reCAPTCHA.
+ */
+function verifyCaptchaToken(?string $token, string $context = 'action'): bool {
+    $provider  = getSystemSetting('captcha_provider', 'disabled');
+    $secretKey = getSystemSetting('captcha_secret_key', '');
+
+    if ($provider === 'disabled' || empty($secretKey)) {
+        return true;
+    }
+
+    if (empty($token)) {
+        return false;
+    }
+
+    $clientIp = getClientIp();
+
+    if ($provider === 'turnstile') {
+        $ch = curl_init('https://challenges.cloudflare.com/turnstile/v0/siteverify');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'secret'   => $secretKey,
+                'response' => $token,
+                'remoteip' => $clientIp,
+            ]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        if (!$response) return false;
+        $data = json_decode($response, true);
+        return !empty($data['success']);
+    }
+
+    if ($provider === 'recaptcha_v2' || $provider === 'recaptcha_v3') {
+        $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => http_build_query([
+                'secret'   => $secretKey,
+                'response' => $token,
+                'remoteip' => $clientIp,
+            ]),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 5,
+            CURLOPT_SSL_VERIFYPEER => false,
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        if (!$response) return false;
+        $data = json_decode($response, true);
+        return !empty($data['success']);
+    }
+
+    return true;
+}
+
+/**
  * POST /api/auth/login
- * Body: { email, password }
- * Protected against brute-force (max 5 failed attempts per 15 min).
+ * Body: { email, password, captcha_token? }
+ * Protected against brute-force (max 30 attempts per 5 min).
  */
 function handleLogin(): void {
     enforceRateLimit('login', 30, 300);
 
-    $body = json_decode(file_get_contents('php://input'), true);
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
     $email    = trim($body['email']    ?? '');
     $password = trim($body['password'] ?? '');
 
     if (!$email || !$password) {
         jsonError('Email and password are required', 400);
+    }
+
+    // Captcha validation if enabled by admin
+    if (getSystemSetting('captcha_on_login', '0') === '1' && getSystemSetting('captcha_provider', 'disabled') !== 'disabled') {
+        $captchaToken = $body['captcha_token'] ?? '';
+        if (!verifyCaptchaToken($captchaToken, 'login')) {
+            jsonError('Security challenge failed. Please verify the captcha.', 400);
+        }
     }
 
     $stmt = db()->prepare('SELECT * FROM users WHERE email = ?');
@@ -217,6 +285,14 @@ function handleLogin(): void {
         ]);
     }
 
+    // Audit log if admin login
+    if (($user['role'] ?? '') === 'admin') {
+        try {
+            $stmtLog = db()->prepare('INSERT INTO audit_logs (admin_id, action, target_type, target_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?)');
+            $stmtLog->execute([$user['id'], 'ADMIN_LOGIN', 'user', (string)$user['id'], "Admin {$user['email']} signed in", getClientIp()]);
+        } catch (Exception $e) {}
+    }
+
     $token = jwt_create(['sub' => $user['id'], 'email' => $user['email'], 'role' => $user['role']]);
 
     jsonSuccess([
@@ -227,13 +303,18 @@ function handleLogin(): void {
 
 /**
  * POST /auth/register
- * Body: { email, password, confirm_password }
+ * Body: { email, password, confirm_password, captcha_token? }
  * Generates secure activation token with 24-hour expiration.
  */
 function handleRegister(): void {
     enforceRateLimit('register', 5, 3600);
 
-    $body     = json_decode(file_get_contents('php://input'), true);
+    // 1. Check if public registration is enabled
+    if (getSystemSetting('allow_registration', '1') === '0') {
+        jsonError('Registration is currently closed by system administrator.', 403);
+    }
+
+    $body     = json_decode(file_get_contents('php://input'), true) ?: [];
     $email    = trim($body['email']            ?? '');
     $password = trim($body['password']         ?? '');
     $confirm  = trim($body['confirm_password'] ?? '');
@@ -243,17 +324,45 @@ function handleRegister(): void {
     if (strlen($password) < 8) jsonError('Password must be at least 8 characters', 400);
     if ($password !== $confirm) jsonError('Passwords do not match', 400);
 
+    // 2. Captcha validation if enabled by admin
+    if (getSystemSetting('captcha_on_register', '0') === '1' && getSystemSetting('captcha_provider', 'disabled') !== 'disabled') {
+        $captchaToken = $body['captcha_token'] ?? '';
+        if (!verifyCaptchaToken($captchaToken, 'register')) {
+            jsonError('Security challenge failed. Please verify the captcha.', 400);
+        }
+    }
+
     try {
         $hash          = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
         $verifyToken   = generateSecureToken(32);
         $verifyExpires = time() + 86400; // 24 hours
 
+        // Default quota from system settings
+        $defQuotaMb = (int)getSystemSetting('default_storage_quota_mb', '10240');
+        $quotaBytes = max(100, $defQuotaMb) * 1024 * 1024;
+
+        // Check if email verification is required
+        $reqVerify = (getSystemSetting('require_email_verification', '1') !== '0');
+        $isVerified = $reqVerify ? 0 : 1;
+
         $stmt = db()->prepare('
-            INSERT INTO users (email, password, role, is_verified, verification_token, verification_expires)
-            VALUES (?, ?, ?, 0, ?, ?)
+            INSERT INTO users (email, password, role, is_verified, verification_token, verification_expires, storage_quota)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ');
-        $stmt->execute([$email, $hash, 'user', $verifyToken, $verifyExpires]);
+        $stmt->execute([$email, $hash, 'user', $isVerified, $verifyToken, $verifyExpires, $quotaBytes]);
         $newId = (int)db()->lastInsertId();
+
+        // If email verification is NOT required, activate account immediately!
+        if (!$reqVerify) {
+            $token = jwt_create(['sub' => $newId, 'email' => $email, 'role' => 'user']);
+            $newUser = db()->query("SELECT * FROM users WHERE id = {$newId}")->fetch();
+            jsonSuccess([
+                'requires_verification' => false,
+                'token'                 => $token,
+                'user'                  => buildUserProfile($newUser),
+                'message'               => 'Account created successfully! You are now signed in.',
+            ], 201);
+        }
 
         $verifyUrl = FRONTEND_URL . '/verify-account?token=' . $verifyToken;
 

@@ -28,27 +28,28 @@ function logAudit(int $adminId, string $action, ?string $targetType = null, ?str
 /**
  * Retrieve a system setting from SQLite.
  */
-function getSystemSetting(string $key, string $default = ''): string {
-    try {
-        $stmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
-        $stmt->execute([$key]);
-        $val = $stmt->fetchColumn();
-        return ($val !== false && $val !== null) ? (string)$val : $default;
-    } catch (Exception $e) {
-        return $default;
+if (!function_exists('getSystemSetting')) {
+    function getSystemSetting(string $key, string $default = ''): string {
+        try {
+            $stmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
+            $stmt->execute([$key]);
+            $val = $stmt->fetchColumn();
+            return ($val !== false && $val !== null) ? (string)$val : $default;
+        } catch (Exception $e) {
+            return $default;
+        }
     }
 }
 
-/**
- * Update a system setting in SQLite.
- */
-function setSystemSetting(string $key, string $value): void {
-    $stmt = db()->prepare('
-        INSERT INTO system_settings (key, value, updated_at)
-        VALUES (?, ?, datetime("now"))
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime("now")
-    ');
-    $stmt->execute([$key, $value]);
+if (!function_exists('setSystemSetting')) {
+    function setSystemSetting(string $key, string $value): void {
+        $stmt = db()->prepare('
+            INSERT INTO system_settings (key, value, updated_at)
+            VALUES (?, ?, datetime("now"))
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime("now")
+        ');
+        $stmt->execute([$key, $value]);
+    }
 }
 
 /**
@@ -94,6 +95,11 @@ function handleAdminRoutes(string $method, array $pathParts): void {
         case 'smtp-test':
             if ($method !== 'POST') jsonError('Method Not Allowed', 405);
             handleAdminSmtpTest($admin);
+            break;
+
+        case 'cron-run':
+            if ($method !== 'POST') jsonError('Method Not Allowed', 405);
+            handleAdminCronRun($admin);
             break;
 
         default:
@@ -187,7 +193,7 @@ function handleAdminUsers(string $method, array $pathParts, array $admin): void 
     $userId = isset($pathParts[2]) ? (int)$pathParts[2] : null;
     $action = $pathParts[3] ?? null;
 
-    if ($userId && $method === 'POST') {
+    if ($userId && ($method === 'POST' || $method === 'PUT')) {
         $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
         // Check target user exists
@@ -195,6 +201,44 @@ function handleAdminUsers(string $method, array $pathParts, array $admin): void 
         $stmt->execute([$userId]);
         $targetUser = $stmt->fetch();
         if (!$targetUser) jsonError('User not found', 404);
+
+        // Direct user update without action (e.g. PUT /admin/users/:id from subscriptions)
+        if (empty($action)) {
+            $updated = [];
+            if (isset($body['storage_quota'])) {
+                $quotaBytes = max(100 * 1024 * 1024, (int)$body['storage_quota']);
+                $pdo->prepare('UPDATE users SET storage_quota = ? WHERE id = ?')->execute([$quotaBytes, $userId]);
+                $quotaMb = round($quotaBytes / 1024 / 1024);
+                logAudit((int)$admin['id'], 'USER_QUOTA_UPDATED', 'user', (string)$userId, "Quota updated to {$quotaMb} MB for {$targetUser['email']}");
+                $updated['storage_quota'] = $quotaBytes;
+            } elseif (isset($body['quota_mb'])) {
+                $quotaMb = max(100, (int)$body['quota_mb']);
+                $quotaBytes = $quotaMb * 1024 * 1024;
+                $pdo->prepare('UPDATE users SET storage_quota = ? WHERE id = ?')->execute([$quotaBytes, $userId]);
+                logAudit((int)$admin['id'], 'USER_QUOTA_UPDATED', 'user', (string)$userId, "Quota set to {$quotaMb} MB for {$targetUser['email']}");
+                $updated['storage_quota'] = $quotaBytes;
+            }
+            if (isset($body['role']) && in_array($body['role'], ['user', 'admin'], true)) {
+                if ((int)$targetUser['id'] === (int)$admin['id']) {
+                    jsonError('You cannot modify your own role', 400);
+                }
+                $newRole = $body['role'];
+                $pdo->prepare('UPDATE users SET role = ? WHERE id = ?')->execute([$newRole, $userId]);
+                logAudit((int)$admin['id'], 'USER_ROLE_CHANGED', 'user', (string)$userId, "Role changed to {$newRole} for {$targetUser['email']}");
+                $updated['role'] = $newRole;
+            }
+            if (isset($body['is_banned'])) {
+                if ((int)$targetUser['id'] === (int)$admin['id']) {
+                    jsonError('You cannot ban your own administrator account', 400);
+                }
+                $newBanned = !empty($body['is_banned']) ? 1 : 0;
+                $pdo->prepare('UPDATE users SET is_banned = ? WHERE id = ?')->execute([$newBanned, $userId]);
+                $updated['is_banned'] = $newBanned;
+            }
+            if (!empty($updated)) {
+                jsonSuccess(['message' => 'User updated successfully', ...$updated]);
+            }
+        }
 
         if ($action === 'ban') {
             if ((int)$targetUser['id'] === (int)$admin['id']) {
@@ -208,8 +252,13 @@ function handleAdminUsers(string $method, array $pathParts, array $admin): void 
         }
 
         if ($action === 'quota') {
-            $quotaMb = isset($body['quota_mb']) ? max(100, (int)$body['quota_mb']) : 10240;
-            $quotaBytes = $quotaMb * 1024 * 1024;
+            if (isset($body['storage_quota'])) {
+                $quotaBytes = max(100 * 1024 * 1024, (int)$body['storage_quota']);
+                $quotaMb = round($quotaBytes / 1024 / 1024);
+            } else {
+                $quotaMb = isset($body['quota_mb']) ? max(100, (int)$body['quota_mb']) : 10240;
+                $quotaBytes = $quotaMb * 1024 * 1024;
+            }
             $pdo->prepare('UPDATE users SET storage_quota = ? WHERE id = ?')->execute([$quotaBytes, $userId]);
             logAudit((int)$admin['id'], 'USER_QUOTA_UPDATED', 'user', (string)$userId, "Quota set to {$quotaMb} MB for {$targetUser['email']}");
             jsonSuccess(['message' => "Quota updated to {$quotaMb} MB", 'storage_quota' => $quotaBytes]);
@@ -255,7 +304,7 @@ function handleAdminUsers(string $method, array $pathParts, array $admin): void 
 
     // Default: List users with search & usage stats
     $search = trim($_GET['q'] ?? '');
-    $limit  = min(100, max(10, (int)($_GET['limit'] ?? 50)));
+    $limit  = min(100, max(10, (int)($_GET['limit'] ?? $_GET['per_page'] ?? 50)));
     $offset = max(0, (int)($_GET['offset'] ?? 0));
 
     $where = '';
@@ -335,7 +384,7 @@ function handleAdminFiles(string $method, array $pathParts, array $admin): void 
     // List files
     $search = trim($_GET['q'] ?? '');
     $filter = trim($_GET['filter'] ?? 'all');
-    $limit  = min(100, max(10, (int)($_GET['limit'] ?? 50)));
+    $limit  = min(100, max(10, (int)($_GET['limit'] ?? $_GET['per_page'] ?? 50)));
     $offset = max(0, (int)($_GET['offset'] ?? 0));
 
     $where = 'WHERE 1=1';
@@ -401,7 +450,15 @@ function handleAdminSettings(string $method, array $admin): void {
         foreach ($body as $k => $v) {
             // Validate key format (alphanumeric and underscore, 2-64 chars)
             if (is_string($k) && preg_match('/^[a-z0-9_]{2,64}$/', $k)) {
-                $valStr = is_scalar($v) ? (string)$v : json_encode($v);
+                if (is_bool($v)) {
+                    $valStr = $v ? '1' : '0';
+                } elseif (is_null($v)) {
+                    $valStr = '';
+                } elseif (is_scalar($v)) {
+                    $valStr = (string)$v;
+                } else {
+                    $valStr = json_encode($v);
+                }
                 setSystemSetting($k, $valStr);
                 $updatedCount++;
             }
@@ -423,19 +480,78 @@ function handleAdminSettings(string $method, array $admin): void {
 }
 
 /**
- * Audit logs: fetch recent admin activity.
+ * Audit logs: fetch recent admin activity, logins, reports, and security events.
  */
 function handleAdminAuditLogs(): void {
-    $stmt = db()->query('
+    $pdo = db();
+    $type = trim($_GET['type'] ?? 'all');
+    $limit = min(200, max(10, (int)($_GET['limit'] ?? 150)));
+
+    $where = 'WHERE 1=1';
+    $params = [];
+
+    if ($type === 'logins') {
+        $where .= " AND (a.action LIKE '%LOGIN%' OR a.action LIKE '%AUTH%' OR a.action LIKE '%PASSKEY%')";
+    } elseif ($type === 'abuse') {
+        $where .= " AND (a.action LIKE '%REPORT%' OR a.action LIKE '%BLOCK%' OR a.action LIKE '%BAN%')";
+    } elseif ($type === 'copyright') {
+        $where .= " AND (a.details LIKE '%copyright%' OR a.details LIKE '%dmca%' OR a.details LIKE '%infringement%' OR a.action = 'FILE_REPORTED')";
+    }
+
+    $stmt = $pdo->prepare("
         SELECT a.id, a.action, a.target_type, a.target_id, a.details, a.ip_address, a.created_at, u.email as admin_email
         FROM audit_logs a
         LEFT JOIN users u ON u.id = a.admin_id
+        {$where}
         ORDER BY a.created_at DESC
-        LIMIT 100
-    ');
+        LIMIT {$limit}
+    ");
+    $stmt->execute($params);
     $logs = $stmt->fetchAll();
 
-    jsonSuccess(['audit_logs' => $logs]);
+    // Summary counts for tabs and RBAC overview
+    $totalAdmins   = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn();
+    $totalUsers    = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'user'")->fetchColumn();
+    $verifiedCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE is_verified = 1")->fetchColumn();
+    $bannedCount   = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE is_banned = 1")->fetchColumn();
+    $blockedFiles  = (int)$pdo->query("SELECT COUNT(*) FROM files WHERE is_blocked = 1")->fetchColumn();
+
+    // RBAC user list
+    $rbacUsers = [];
+    if ($type === 'rbac' || isset($_GET['include_rbac'])) {
+        $rbacStmt = $pdo->query("
+            SELECT id, email, display_name, role, is_verified, is_banned, created_at 
+            FROM users 
+            ORDER BY (CASE WHEN role = 'admin' THEN 0 ELSE 1 END), created_at DESC 
+            LIMIT 50
+        ");
+        $rbacUsers = $rbacStmt->fetchAll();
+    }
+
+    jsonSuccess([
+        'audit_logs' => $logs,
+        'summary' => [
+            'total_admins'   => $totalAdmins,
+            'total_users'    => $totalUsers,
+            'verified_users' => $verifiedCount,
+            'banned_users'   => $bannedCount,
+            'blocked_files'  => $blockedFiles,
+        ],
+        'rbac_users' => $rbacUsers,
+    ]);
+}
+
+/**
+ * Trigger background cron maintenance on demand.
+ */
+function handleAdminCronRun(array $admin): void {
+    require_once __DIR__ . '/cron.php';
+    $res = runSystemCron();
+    logAudit((int)$admin['id'], 'CRON_MANUAL_RUN', 'system', 'cron', "Admin manually triggered maintenance cron: cleaned {$res['cleaned_expired_files']} expired file(s), purged {$res['purged_rate_limits']} rate limit(s)");
+    jsonSuccess([
+        'message' => "Automated cron maintenance completed in {$res['duration_ms']}ms. Cleaned {$res['cleaned_expired_files']} expired guest file(s) and purged {$res['purged_rate_limits']} rate limit records.",
+        'cron_results' => $res,
+    ]);
 }
 
 /**

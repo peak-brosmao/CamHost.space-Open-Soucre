@@ -330,6 +330,24 @@ function handleDownloadFile(int $id): void {
  * Public endpoint: streams the shared file download.
  */
 function handleDownloadSharedFile(string $token): void {
+    // Enforce guest download policy from admin settings
+    $allowGuest = getSystemSetting('allow_guest_download', '1');
+    if ($allowGuest === '0') {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $authToken  = $_GET['user_token'] ?? ($_GET['auth_token'] ?? '');
+        $isLoggedIn = false;
+        if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $m)) {
+            $payload = jwt_verify($m[1]);
+            if ($payload) $isLoggedIn = true;
+        } elseif (!empty($authToken)) {
+            $payload = jwt_verify($authToken);
+            if ($payload) $isLoggedIn = true;
+        }
+        if (!$isLoggedIn) {
+            jsonError('Guest downloads are disabled by administrator. Please sign in or register to download this file.', 403);
+        }
+    }
+
     $stmt = db()->prepare('SELECT id, telegram_file_id, original_name, mime_type, size_bytes, is_blocked, COALESCE(downloads, 0) as downloads, download_limit FROM files WHERE share_token = ? AND is_public = 1');
     $stmt->execute([$token]);
     $file = $stmt->fetch();

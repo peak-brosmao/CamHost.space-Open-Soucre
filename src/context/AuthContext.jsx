@@ -62,10 +62,10 @@ export function AuthProvider({ children }) {
     return null;
   };
 
-  const login = async (email, password) => {
+  const login = async (email, password, captchaToken = null) => {
     const res = await apiRequest('/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: { email, password, ...(captchaToken ? { captcha_token: captchaToken } : {}) },
     });
     setToken(res.token);
     setUser(res.user);
@@ -74,12 +74,17 @@ export function AuthProvider({ children }) {
     return res;
   };
 
-  const register = async (email, password, confirmPassword) => {
+  const register = async (email, password, confirmPassword, captchaToken = null) => {
     const res = await apiRequest('/auth/register', {
       method: 'POST',
-      body: { email, password, confirm_password: confirmPassword },
+      body: {
+        email,
+        password,
+        confirm_password: confirmPassword,
+        ...(captchaToken ? { captcha_token: captchaToken } : {}),
+      },
     });
-    if (res.token && !res.requires_verification) {
+    if (res.token && (!res.requires_verification || res.user)) {
       setToken(res.token);
       setUser(res.user);
       setTokenState(res.token);

@@ -69,12 +69,15 @@ function AdminRoute({ children }) {
   return children;
 }
 
+import AnnouncementBanner from './components/AnnouncementBanner';
+
 export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
+            <AnnouncementBanner />
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<LandingPage />} />

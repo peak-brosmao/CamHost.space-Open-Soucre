@@ -189,3 +189,30 @@ function seedSettings(PDO $pdo): void {
         }
     }
 }
+
+/**
+ * Retrieve a system setting from SQLite with fallback default.
+ */
+function getSystemSetting(string $key, string $default = ''): string {
+    try {
+        $stmt = db()->prepare('SELECT value FROM system_settings WHERE key = ?');
+        $stmt->execute([$key]);
+        $val = $stmt->fetchColumn();
+        return ($val !== false && $val !== null) ? (string)$val : $default;
+    } catch (Throwable $e) {
+        return $default;
+    }
+}
+
+/**
+ * Update a system setting in SQLite.
+ */
+function setSystemSetting(string $key, string $value): void {
+    $stmt = db()->prepare('
+        INSERT INTO system_settings (key, value, updated_at)
+        VALUES (?, ?, datetime("now"))
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime("now")
+    ');
+    $stmt->execute([$key, $value]);
+}
+

@@ -64,6 +64,7 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [smtpTesting, setSmtpTesting] = useState(false);
   const [cacheClearing, setCacheClearing] = useState(false);
+  const [runningCron, setRunningCron] = useState(false);
 
   const currentSection = SECTIONS.find(s => s.id === section) || SECTIONS[0];
 
@@ -132,6 +133,18 @@ export default function AdminSettings() {
       showToast(err.message || 'SMTP Test failed: Could not connect to mail server', 'error');
     } finally {
       setSmtpTesting(false);
+    }
+  };
+
+  const handleRunCron = async () => {
+    setRunningCron(true);
+    try {
+      const res = await apiRequest('/admin/cron-run', { method: 'POST' });
+      showToast(res.message || 'Automated maintenance cron completed successfully', 'success');
+    } catch (err) {
+      showToast(err.message || 'Failed to run cron maintenance', 'error');
+    } finally {
+      setRunningCron(false);
     }
   };
 
@@ -591,6 +604,24 @@ export default function AdminSettings() {
               <code style={{ display: 'block', padding: '10px 14px', background: 'var(--adm-elevated)', borderRadius: 7, border: '1px solid var(--adm-border)', fontSize: '0.8rem', color: 'var(--adm-indigo)' }}>
                 0 0 * * * php /home/u123456789/domains/camhost.space/public_html/api/cron.php &gt;/dev/null 2&gt;&amp;1
               </code>
+            </div>
+
+            <div style={{ marginTop: 20 }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={runningCron}
+                onClick={handleRunCron}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                {runningCron ? <span className="spinner-sm" /> : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg>
+                )}
+                {runningCron ? 'Running Cron…' : '⚡ Run Cron Now (Test Cleanup)'}
+              </button>
             </div>
           </div>
         )}

@@ -45,14 +45,16 @@ function handleUpload(): void {
         jsonError($errors[$f['error']] ?? 'Upload error code ' . $f['error'], 400);
     }
 
-    // Size check
+    // Size check against server config and admin policy
     $maxBytes = UPLOAD_MAX_MB * 1024 * 1024;
+    $policyMaxMb = (int)getSystemSetting('max_upload_size_mb', '2000');
+    if ($policyMaxMb > 0) {
+        $maxBytes = min($maxBytes, $policyMaxMb * 1024 * 1024);
+    }
     if ($f['size'] > $maxBytes) {
         $humanSize = formatBytes($f['size']);
-        $helpNote = TELEGRAM_LOCAL_MODE
-            ? "Max allowed: " . UPLOAD_MAX_MB . " MB."
-            : "Telegram Cloud Bot API limits uploads to " . UPLOAD_MAX_MB . " MB. To upload larger files (up to 2 GB), set TELEGRAM_LOCAL_MODE=true in api/.env with a local Telegram Bot API server.";
-        jsonError("File too large ({$humanSize}). {$helpNote}", 413);
+        $limitMb = round($maxBytes / 1024 / 1024);
+        jsonError("File too large ({$humanSize}). Maximum allowed upload size is {$limitMb} MB.", 413);
     }
 
     $originalName = basename($f['name']);
@@ -62,6 +64,15 @@ function handleUpload(): void {
     $dangerousExts = ['php', 'php3', 'php4', 'php5', 'phtml', 'phar', 'htaccess', 'htpasswd'];
     if (in_array($ext, $dangerousExts, true)) {
         jsonError('Security restriction: Server scripts (.php, .htaccess) cannot be uploaded.', 400);
+    }
+
+    // Check allowed file extensions allowlist from admin settings
+    $allowedExtStr = trim(getSystemSetting('allowed_extensions', ''));
+    if (!empty($allowedExtStr)) {
+        $allowedList = array_map('trim', explode(',', strtolower($allowedExtStr)));
+        if (!in_array($ext, $allowedList, true)) {
+            jsonError("File extension '.{$ext}' is not permitted by platform upload governance.", 400);
+        }
     }
     $mimeType     = mime_content_type($f['tmp_name']) ?: 'application/octet-stream';
     $sizeBytes    = $f['size'];
