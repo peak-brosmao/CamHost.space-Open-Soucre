@@ -8,3 +8,15 @@ api/.env
 !api/.env.example
 data/
 *.db
+
+# Never commit large media/archive files
+*.rar
+*.zip
+*.7z
+*.tar
+*.gz
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.iso
