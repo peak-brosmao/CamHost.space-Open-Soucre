@@ -138,7 +138,8 @@ try {
             'custom_logo_url', 'custom_favicon_url', 'max_upload_size_mb', 'allowed_extensions',
             'allow_guest_download', 'allow_guest_uploads', 'guest_max_upload_mb', 'social_telegram',
             'social_facebook', 'social_github', 'maintenance_mode', 'maintenance_message',
-            'default_language', 'multilingual_enabled'
+            'default_language', 'multilingual_enabled',
+            'ad_header_code', 'ad_download_code', 'custom_head_code', 'seo_meta_title', 'seo_keywords', 'google_verification'
         ];
         $inClause = implode(',', array_fill(0, count($publicKeys), '?'));
         $stmt = db()->prepare("SELECT key, value FROM system_settings WHERE key IN ($inClause)");

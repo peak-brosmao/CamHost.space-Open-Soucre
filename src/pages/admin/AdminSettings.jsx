@@ -539,11 +539,35 @@ export default function AdminSettings() {
         {section === 'ads' && (
           <div className="admin-card">
             <h3 className="admin-card-title">Monetization & Social Media Links</h3>
-            <Field label="Top Header Banner Ad HTML / Script Code">
-              <textarea className="input-field" rows={3} value={settings.ad_header_code || ''} onChange={e => set('ad_header_code', e.target.value)} placeholder="<!-- AdSense or Ad network banner script -->" />
+
+            <div style={{
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              borderRadius: 8,
+              padding: '12px 16px',
+              marginBottom: 20,
+              fontSize: '0.84rem',
+              lineHeight: 1.55,
+              color: 'var(--adm-text)',
+            }}>
+              <div style={{ fontWeight: 700, color: 'var(--adm-indigo)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                Google AdSense Site Verification &amp; Integration
+              </div>
+              <div style={{ color: 'var(--adm-muted)' }}>
+                The AdSense loader script is embedded in the website <code style={{ color: 'var(--adm-indigo)' }}>&lt;head&gt;</code> (Publisher ID: <strong style={{ color: 'var(--adm-text)' }}>ca-pub-7280243300261707</strong>) and <code style={{ color: 'var(--adm-indigo)' }}>ads.txt</code> is configured at <strong style={{ color: 'var(--adm-text)' }}>/ads.txt</strong>. You can paste specific banner display units (<code style={{ color: 'var(--adm-indigo)' }}>&lt;ins class=&quot;adsbygoogle&quot; ...&gt;</code>) into the fields below.
+              </div>
+            </div>
+
+            <Field label="Top Header Banner Ad HTML / Script Code" hint="Paste your banner unit code or AdSense <ins> snippet. Displayed at the top of site pages.">
+              <textarea className="input-field" rows={3} value={settings.ad_header_code || ''} onChange={e => set('ad_header_code', e.target.value)} placeholder="<!-- AdSense banner unit: <ins class='adsbygoogle' ...></ins> -->" />
             </Field>
-            <Field label="File Download Page Ad HTML / Script Code">
-              <textarea className="input-field" rows={3} value={settings.ad_download_code || ''} onChange={e => set('ad_download_code', e.target.value)} placeholder="<!-- Download page banner script -->" />
+            <Field label="File Download Page Ad HTML / Script Code" hint="Displayed on public file download pages (/share/:token) below the download card.">
+              <textarea className="input-field" rows={3} value={settings.ad_download_code || ''} onChange={e => set('ad_download_code', e.target.value)} placeholder="<!-- Download page banner script / ad unit -->" />
             </Field>
             <Field label="Telegram Channel / Group Link">
               <input type="text" className="input-field" value={settings.social_telegram || 'https://t.me/camhost_space'} onChange={e => set('social_telegram', e.target.value)} />

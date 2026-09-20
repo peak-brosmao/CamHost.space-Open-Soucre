@@ -12,6 +12,8 @@ const cleanTemplate = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CamHost.space — Unlimited Private Cloud Storage · Powered by Telegram</title>
   <meta name="description" content="CamHost.space is an open-source unlimited private cloud storage platform powered by Telegram. Upload files from your browser — we handle the rest." />
+  <!-- Google AdSense Verification & Auto-Ads -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7280243300261707" crossorigin="anonymous"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -61,6 +63,17 @@ try {
   for (const f of fs.readdirSync(distAssets)) {
     fs.copyFileSync(path.join(distAssets, f), path.join(rootAssets, f));
   }
+
+  // Sync public files like ads.txt and google-verification to root
+  const publicDir = path.resolve('public');
+  if (fs.existsSync(publicDir)) {
+    for (const f of fs.readdirSync(publicDir)) {
+      if (f.endsWith('.txt') || f.startsWith('google') || f === 'robots.txt') {
+        fs.copyFileSync(path.join(publicDir, f), path.resolve(f));
+      }
+    }
+  }
+
   console.log('Production assets synced to root successfully.');
 } catch (err) {
   console.error('Build error:', err);

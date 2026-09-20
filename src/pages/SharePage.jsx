@@ -13,6 +13,7 @@ import CanvasBackground from '../components/CanvasBackground';
 import Header from '../components/Header';
 import Modal from '../components/Modal';
 import { useToast } from '../components/Toast';
+import AdBanner from '../components/AdBanner';
 
 export default function SharePage() {
   const { token } = useParams();
@@ -21,6 +22,7 @@ export default function SharePage() {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [downloadAd, setDownloadAd] = useState('');
 
   // Report Modal state
   const [reportModal, setReportModal] = useState({
@@ -49,6 +51,14 @@ export default function SharePage() {
       }
     }
     loadSharedFile();
+
+    apiRequest('/public-settings')
+      .then((res) => {
+        if (res?.settings?.ad_download_code?.trim()) {
+          setDownloadAd(res.settings.ad_download_code.trim());
+        }
+      })
+      .catch(() => {});
   }, [token]);
 
   const fileName = file ? file.file_name || file.original_name || file.name || 'Shared File' : 'Shared File';
@@ -364,6 +374,13 @@ export default function SharePage() {
                 Free & Unlimited
               </span>
             </div>
+
+            {/* Download Page Banner Ad Unit */}
+            {downloadAd && (
+              <div style={{ marginTop: '24px', width: '100%', maxWidth: '640px' }}>
+                <AdBanner htmlCode={downloadAd} />
+              </div>
+            )}
 
           </div>
         )}

@@ -20,3 +20,6 @@ data/
 *.avi
 *.mov
 *.iso
+*.torrent
+*.exe
+*.pdf
